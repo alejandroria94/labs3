@@ -1,0 +1,459 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Lab 01</title>
+
+  <style>
+    body { font-family: Arial, Helvetica, sans-serif; margin: 0; background: #ffffff; color: #111; }
+    header { padding: 18px 18px; border-bottom: 1px solid #e6e6e6; background: #fafafa; }
+    header a { color: #1f3c88; text-decoration: none; font-weight: bold; }
+    header a:hover { text-decoration: underline; }
+    main { max-width: 1000px; margin: 0 auto; padding: 18px; }
+    h1 { margin: 0 0 6px 0; color: #1f3c88; font-size: 20px; }
+    h2 { color: #1f3c88; }
+    h3 { color: #1f3c88; }
+    hr { border: 0; border-top: 1px solid #e6e6e6; margin: 18px 0; }
+    pre { background: #f6f8fa; border: 1px solid #e6e6e6; border-radius: 10px; padding: 12px; overflow: auto; }
+    code { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+    ul, ol { padding-left: 22px; }
+    .wrap { line-height: 1.5; }
+    .small { color: #555; font-size: 12px; }
+  </style>
+</head>
+
+<body>
+
+<header>
+  <a href="../../index.html">← Volver a la portada</a>
+  <div class="small" style="margin-top:6px;">Ingeniería de Software III — Laboratorios</div>
+</header>
+
+<main class="wrap">
+
+  <h1>Lab 01</h1>
+
+  <div style="font-family: Arial, Helvetica, sans-serif; line-height: 1.5;">
+
+    <h2 style="text-align:center; margin-bottom:8px;"></h2>
+    <h2>Ingeniería de Software III</h2>
+    <h3>Guía completa — Arquitectura por Capas + H2 en memoria + Java 21</h3>
+    <hr>
+    <h3>1. Propósito</h3>
+    <p>Construir un módulo inicial (<strong>Estudiantes</strong>) del Sistema Académico utilizando&nbsp;<strong>arquitectura por capas</strong>&nbsp;en Spring Boot e integrar una base de datos&nbsp;<strong>H2 en memoria</strong>, con un proyecto configurado para&nbsp;<strong>Java 21</strong>. La actividad busca que el estudiante identifique claramente la separación de responsabilidades entre capas y reconozca la zona de acceso a datos.</p>
+
+    <h3>2. Resultados esperados</h3>
+    <ul>
+      <li>Ejecutar el proyecto con Java 21.</li>
+      <li>Integrar H2 en memoria y acceder a la consola H2.</li>
+      <li>Precargar registros iniciales para pruebas.</li>
+      <li>Crear y listar estudiantes mediante endpoints REST.</li>
+      <li>Aplicar la regla de negocio:&nbsp;<strong>email único</strong>.</li>
+      <li>Identificar la&nbsp;<strong>zona de acceso a la base de datos</strong>&nbsp;en el código.</li>
+    </ul>
+
+    <hr>
+
+    <h3>3. Estructura del proyecto (por capas)</h3>
+    <pre>co.edu.demoacademico
+├── DemoAcademicoApplication
+├── controller
+│   └── EstudianteController.java
+├── service
+│   └── EstudianteService.java
+├── repository
+│   └── EstudianteRepository.java
+└── model
+    └── Estudiante.java
+</pre>
+
+    <p><strong>Flujo:</strong></p>
+    <pre>HTTP → Controller → Service → Repository → H2 (en memoria)
+</pre>
+
+    <hr>
+
+    <h3>4. Requisitos técnicos</h3>
+    <ul>
+      <li><strong>JDK:</strong>&nbsp;Java 21</li>
+      <li><strong>Build tool:</strong>&nbsp;Maven</li>
+      <li><strong>Framework:</strong>&nbsp;Spring Boot</li>
+      <li><strong>BD:</strong>&nbsp;H2 en memoria</li>
+      <li><strong>Pruebas:</strong>&nbsp;Postman o curl</li>
+    </ul>
+
+    <h4>4.1 Verificación de Java</h4>
+    <p>En consola verifica:</p>
+    <pre>java -version</pre>
+    <p>Debe mostrar Java 21 (por ejemplo:&nbsp;<code>21.x.x</code>).</p>
+
+    <hr>
+
+    <h3>5. Configuración del proyecto (Maven + Java 21)</h3>
+
+    <h4>5.1 pom.xml</h4>
+    <p>Copia y pega este contenido en el archivo&nbsp;<code>pom.xml</code>. Incluye Web, JPA, H2, Validaciones y Tests, y queda configurado para&nbsp;<strong>Java 21</strong>.</p>
+
+    <pre>&lt;?xml version="1.0" encoding="UTF-8"?&gt;
+&lt;project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
+         http://maven.apache.org/xsd/maven-4.0.0.xsd"&gt;
+
+    &lt;modelVersion&gt;4.0.0&lt;/modelVersion&gt;
+
+    &lt;groupId&gt;co.edu.demoacademico&lt;/groupId&gt;
+    &lt;artifactId&gt;demo-academico&lt;/artifactId&gt;
+    &lt;version&gt;0.0.1-SNAPSHOT&lt;/version&gt;
+    &lt;name&gt;demo-academico&lt;/name&gt;
+    &lt;description&gt;Proyecto base Ingeniería de Software III&lt;/description&gt;
+    &lt;packaging&gt;jar&lt;/packaging&gt;
+
+    &lt;parent&gt;
+        &lt;groupId&gt;org.springframework.boot&lt;/groupId&gt;
+        &lt;artifactId&gt;spring-boot-starter-parent&lt;/artifactId&gt;
+        &lt;version&gt;3.2.5&lt;/version&gt;
+        &lt;relativePath/&gt;
+    &lt;/parent&gt;
+
+    &lt;properties&gt;
+        &lt;java.version&gt;21&lt;/java.version&gt;
+    &lt;/properties&gt;
+
+    &lt;dependencies&gt;
+
+        &lt;!-- Web (REST Controllers) --&gt;
+        &lt;dependency&gt;
+            &lt;groupId&gt;org.springframework.boot&lt;/groupId&gt;
+            &lt;artifactId&gt;spring-boot-starter-web&lt;/artifactId&gt;
+        &lt;/dependency&gt;
+
+        &lt;!-- JPA (Persistencia) --&gt;
+        &lt;dependency&gt;
+            &lt;groupId&gt;org.springframework.boot&lt;/groupId&gt;
+            &lt;artifactId&gt;spring-boot-starter-data-jpa&lt;/artifactId&gt;
+        &lt;/dependency&gt;
+
+        &lt;!-- H2 Base de datos en memoria --&gt;
+        &lt;dependency&gt;
+            &lt;groupId&gt;com.h2database&lt;/groupId&gt;
+            &lt;artifactId&gt;h2&lt;/artifactId&gt;
+            &lt;scope&gt;runtime&lt;/scope&gt;
+        &lt;/dependency&gt;
+
+        &lt;!-- Validaciones (recomendado) --&gt;
+        &lt;dependency&gt;
+            &lt;groupId&gt;org.springframework.boot&lt;/groupId&gt;
+            &lt;artifactId&gt;spring-boot-starter-validation&lt;/artifactId&gt;
+        &lt;/dependency&gt;
+
+        &lt;!-- Testing --&gt;
+        &lt;dependency&gt;
+            &lt;groupId&gt;org.springframework.boot&lt;/groupId&gt;
+            &lt;artifactId&gt;spring-boot-starter-test&lt;/artifactId&gt;
+            &lt;scope&gt;test&lt;/scope&gt;
+        &lt;/dependency&gt;
+
+    &lt;/dependencies&gt;
+
+    &lt;build&gt;
+        &lt;plugins&gt;
+
+            &lt;!-- Plugin Spring Boot --&gt;
+            &lt;plugin&gt;
+                &lt;groupId&gt;org.springframework.boot&lt;/groupId&gt;
+                &lt;artifactId&gt;spring-boot-maven-plugin&lt;/artifactId&gt;
+            &lt;/plugin&gt;
+
+            &lt;!-- Compilador configurado para Java 21 --&gt;
+            &lt;plugin&gt;
+                &lt;groupId&gt;org.apache.maven.plugins&lt;/groupId&gt;
+                &lt;artifactId&gt;maven-compiler-plugin&lt;/artifactId&gt;
+                &lt;configuration&gt;
+                    &lt;source&gt;21&lt;/source&gt;
+                    &lt;target&gt;21&lt;/target&gt;
+                &lt;/configuration&gt;
+            &lt;/plugin&gt;
+
+        &lt;/plugins&gt;
+    &lt;/build&gt;
+
+&lt;/project&gt;
+</pre>
+
+    <hr>
+
+    <h3>6. Configuración de base de datos H2 en memoria</h3>
+
+    <h4>6.1 application.yml</h4>
+    <p>Crea el archivo&nbsp;<code>src/main/resources/application.yml</code>&nbsp;con el siguiente contenido:</p>
+
+    <pre>server:
+  port: 8080
+
+spring:
+  datasource:
+    # Zona de conexión a BD (H2 en memoria)
+    url: jdbc:h2:mem:demoacademico;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+
+  jpa:
+    # Crea/actualiza tablas según @Entity
+    hibernate:
+      ddl-auto: update
+    # Visualizar SQL en consola (didáctico)
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+
+  # Garantiza que primero se creen las tablas (Hibernate)
+  # y después se ejecute data.sql  
+    defer-datasource-initialization: true
+
+  sql:
+    init:
+      mode: always
+
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+</pre>
+
+    <p><strong>Nota:</strong>&nbsp;si tu IDE resalta duplicación de llaves (<code>spring.jpa</code>), mantén una sola sección&nbsp;<code>spring.jpa</code>&nbsp;y conserva dentro&nbsp;<code>defer-datasource-initialization: true</code>.</p>
+
+    <h4>6.2 Acceso a H2 Console</h4>
+    <ol>
+      <li>Ejecuta el proyecto.</li>
+      <li>Abre:&nbsp;<code>http://localhost:8080/h2-console</code></li>
+      <li>Configura:
+        <ul>
+          <li><strong>JDBC URL:</strong>&nbsp;<code>jdbc:h2:mem:demoacademico</code></li>
+          <li><strong>User Name:</strong>&nbsp;<code>sa</code></li>
+          <li><strong>Password:</strong>&nbsp;(vacío)</li>
+        </ul>
+      </li>
+    </ol>
+
+    <h4>6.3 Precarga de datos iniciales (data.sql)</h4>
+    <p>Crea el archivo&nbsp;<code>src/main/resources/data.sql</code>&nbsp;con el siguiente contenido. Estos registros se cargarán automáticamente al iniciar la aplicación.</p>
+    <pre>INSERT INTO estudiante (nombre, email) VALUES ('Ana Pérez', 'ana@demo.com');
+INSERT INTO estudiante (nombre, email) VALUES ('Juan Gómez', 'juan@demo.com');
+INSERT INTO estudiante (nombre, email) VALUES ('Carlos Ruiz', 'carlos@demo.com');
+</pre>
+
+    <p><strong>Verificación en consola H2:</strong></p>
+    <pre>SELECT * FROM estudiante;
+</pre>
+
+    <hr>
+
+    <h3>7. Implementación (módulo Estudiantes)</h3>
+
+    <h4>7.1 Entidad (model/Estudiante.java)</h4>
+    <p>La entidad representa el modelo de datos. Incluye validaciones básicas con&nbsp;<code>jakarta.validation</code>.</p>
+
+    <pre>package co.edu.demoacademico.model;
+
+import jakarta.persistence.*;
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotBlank;
+
+@Entity
+@Table(name = "estudiante")
+public class Estudiante {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @NotBlank(message = "El nombre es obligatorio")
+    @Column(nullable = false)
+    private String nombre;
+
+    @NotBlank(message = "El email es obligatorio")
+    @Email(message = "Formato de email inválido")
+    @Column(nullable = false, unique = true)
+    private String email;
+
+    public Estudiante() {}
+
+    public Long getId() { return id; }
+    public void setId(Long id) { this.id = id; }
+
+    public String getNombre() { return nombre; }
+    public void setNombre(String nombre) { this.nombre = nombre; }
+
+    public String getEmail() { return email; }
+    public void setEmail(String email) { this.email = email; }
+}
+</pre>
+
+    <h4>7.2 Repositorio (repository/EstudianteRepository.java)</h4>
+    <p><strong>Nota didáctica:</strong>&nbsp;esta es la&nbsp;<strong>ZONA DE ACCESO A LA BASE DE DATOS</strong>. Aquí se realizan operaciones contra H2 a través de JPA (Spring Data).</p>
+
+    <pre>package co.edu.demoacademico.repository;
+
+import co.edu.demoacademico.model.Estudiante;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
+
+import java.util.Optional;
+
+@Repository
+public interface EstudianteRepository extends JpaRepository&lt;Estudiante, Long&gt; {
+
+    // ============================
+    // ZONA DE ACCESO A LA BD (JPA)
+    // ============================
+    Optional&lt;Estudiante&gt; findByEmail(String email);
+}
+</pre>
+
+    <h4>7.3 Servicio (service/EstudianteService.java)</h4>
+    <p>El servicio concentra la&nbsp;<strong>lógica de negocio</strong>. Observa cómo llama al Repository para consultar/guardar y cómo aplica la regla de&nbsp;<strong>email único</strong>.</p>
+
+    <pre>package co.edu.demoacademico.service;
+
+import co.edu.demoacademico.model.Estudiante;
+import co.edu.demoacademico.repository.EstudianteRepository;
+import org.springframework.stereotype.Service;
+
+import java.util.List;
+
+@Service
+public class EstudianteService {
+
+    private final EstudianteRepository repository;
+
+    public EstudianteService(EstudianteRepository repository) {
+        this.repository = repository;
+    }
+
+    public Estudiante crear(Estudiante estudiante) {
+
+        // ----------------------------
+        // ZONA DE LÓGICA DE NEGOCIO:
+        // Regla: email único
+        // ----------------------------
+        repository.findByEmail(estudiante.getEmail())
+                .ifPresent(e -&gt; {
+                    throw new IllegalStateException("Email ya registrado");
+                });
+
+        // ============================
+        // ZONA DE ACCESO A LA BD:
+        // Persistencia vía Repository
+        // ============================
+        return repository.save(estudiante);
+    }
+
+    public List&lt;Estudiante&gt; listar() {
+        // ============================
+        // ZONA DE ACCESO A LA BD:
+        // Consulta vía Repository
+        // ============================
+        return repository.findAll();
+    }
+}
+</pre>
+
+    <h4>7.4 Controlador (controller/EstudianteController.java)</h4>
+    <p>El controlador expone endpoints REST. Se utiliza&nbsp;<code>@Valid</code>&nbsp;para ejecutar validaciones del modelo.</p>
+
+    <pre>package co.edu.demoacademico.controller;
+
+import co.edu.demoacademico.model.Estudiante;
+import co.edu.demoacademico.service.EstudianteService;
+import jakarta.validation.Valid;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+
+@RestController
+@RequestMapping("/api/estudiantes")
+public class EstudianteController {
+
+    private final EstudianteService service;
+
+    public EstudianteController(EstudianteService service) {
+        this.service = service;
+    }
+
+    @PostMapping
+    public Estudiante crear(@Valid @RequestBody Estudiante estudiante) {
+        return service.crear(estudiante);
+    }
+
+    @GetMapping
+    public List&lt;Estudiante&gt; listar() {
+        return service.listar();
+    }
+}
+</pre>
+
+    <hr>
+
+    <h3>8. Pruebas rápidas</h3>
+
+    <h4>8.1 Crear estudiante (curl)</h4>
+    <pre>curl -X POST http://localhost:8080/api/estudiantes ^
+  -H "Content-Type: application/json" ^
+  -d "{\"nombre\":\"Dario\",\"email\":\"dario@demo.com\"}"
+</pre>
+
+    <h4>8.2 Listar estudiantes (curl)</h4>
+    <pre>curl http://localhost:8080/api/estudiantes
+</pre>
+
+    <h4>8.3 Verificación en H2 Console</h4>
+    <ul>
+      <li>Conecta a H2 Console y ejecuta:&nbsp;<code>SELECT * FROM estudiante;</code></li>
+      <li>Verifica que los registros de&nbsp;<code>data.sql</code>&nbsp;y los creados por POST aparecen en la tabla.</li>
+    </ul>
+
+    <hr>
+
+    <h3>9. Actividad en grupos</h3>
+    <ol>
+      <li>Agregar un endpoint de búsqueda por email (ej.:&nbsp;<code>GET /api/estudiantes/buscar?email=...</code>).</li>
+      <li>Agregar manejo de error controlado cuando el email ya existe (respuesta clara al cliente).</li>
+      <li>Documentar (en comentarios) cuáles clases pertenecen a:
+        <ul>
+          <li>Presentación (Controller)</li>
+          <li>Lógica (Service)</li>
+          <li>Acceso a datos (Repository) —&nbsp;<strong>zona BD</strong></li>
+        </ul>
+      </li>
+      <li>Realizar una captura de pantalla de H2 Console mostrando la tabla&nbsp;<code>estudiante</code>&nbsp;con registros.</li>
+      <li>Redactar 3 limitaciones observadas del modelo por capas (con ejemplos del código).</li>
+    </ol>
+
+    <h4>Entregable</h4>
+    <ul>
+      <li>Repositorio con el código funcionando (POST/GET y búsqueda por email).</li>
+      <li>Documento breve con:
+        <ul>
+          <li>Diagrama simple del flujo por capas.</li>
+          <li>Captura de H2 Console y consulta&nbsp;<code>SELECT</code>.</li>
+          <li>Limitaciones identificadas (3) con evidencia en el código.</li>
+        </ul>
+      </li>
+    </ul>
+
+    <hr>
+
+    <h3>10. Cierre</h3>
+    <p>La arquitectura por capas permite avanzar rápido, pero al crecer el sistema aparecen desafíos de acoplamiento y pruebas. En la siguiente etapa del curso se abordará la evolución hacia una arquitectura que proteja la lógica del negocio desacoplándola de la infraestructura.</p>
+    <br>
+
+  </div>
+
+</main>
+
+</body>
+</html>
