@@ -1,0 +1,705 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Lab 02</title>
+
+  <style>
+    body { font-family: Arial, Helvetica, sans-serif; margin: 0; background: #ffffff; color: #111; }
+    header { padding: 18px 18px; border-bottom: 1px solid #e6e6e6; background: #fafafa; }
+    header a { color: #1f3c88; text-decoration: none; font-weight: bold; }
+    header a:hover { text-decoration: underline; }
+    main { max-width: 1000px; margin: 0 auto; padding: 18px; }
+    h1 { margin: 0 0 6px 0; color: #1f3c88; font-size: 20px; }
+    h2 { color: #1f3c88; }
+    h3 { color: #1f3c88; }
+    h4 { color: #1f3c88; margin-bottom: 8px; }
+    hr { border: 0; border-top: 1px solid #e6e6e6; margin: 18px 0; }
+    pre { background: #f6f8fa; border: 1px solid #e6e6e6; border-radius: 10px; padding: 12px; overflow: auto; }
+    code { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+    ul, ol { padding-left: 22px; }
+    .small { color: #555; font-size: 12px; }
+    .note { border-left: 4px solid #1f3c88; background: #eef5ff; padding: 10px 12px; border-radius: 8px; }
+    .toc { border: 1px solid #e6e6e6; background: #fcfcfc; border-radius: 10px; padding: 12px; }
+    .toc ul { margin: 0; }
+    a { color: #1f3c88; }
+  </style>
+</head>
+
+<body>
+
+<header>
+  <a href="../../index.html">← Volver a la portada</a>
+  <div class="small" style="margin-top:6px;">Ingeniería de Software III — Laboratorios</div>
+</header>
+
+<main>
+
+  <h1>Lab 02</h1>
+  <h2>API REST robusta: DTO + ApiResponse + Excepciones + Pageable + Seeder (Faker) + Swagger</h2>
+
+  <p>
+    En este laboratorio, partiendo del <strong>aplicativo base demo-academico</strong> y del módulo Estudiantes ya creado,
+    vas a evolucionar la API para que sea más robusta y mantenible, aplicando buenas prácticas:
+    <strong>DTOs</strong>, <strong>respuesta estándar</strong>, <strong>manejo global de errores</strong>,
+    <strong>paginación con Pageable</strong> y <strong>carga masiva de datos con Seeder</strong>.
+  </p>
+
+  <div class="note">
+    <strong>Punto de partida:</strong> ya existe la entidad <code>Estudiante</code> y el proyecto corre con H2 en memoria.
+    El <code>application.yml</code> incluye <code>app.seed.enabled</code> y <code>app.seed.cantidad</code>,
+    y Swagger está disponible en <code>/swagger-ui.html</code>.
+  </div>
+
+  <hr />
+
+  <div class="toc">
+    <h3 style="margin-top:0;">Contenido</h3>
+    <ul>
+      <li><a href="#resultados">1) Resultados esperados</a></li>
+      <li><a href="#estructura">2) Estructura final esperada</a></li>
+      <li><a href="#paso1">3) Paso 1 — Crear DTOs</a></li>
+      <li><a href="#paso2">4) Paso 2 — ApiResponse + ResponseBuilder</a></li>
+      <li><a href="#paso3">5) Paso 3 — Excepciones (NotFound / Business)</a></li>
+      <li><a href="#paso4">6) Paso 4 — GlobalExceptionHandler</a></li>
+      <li><a href="#paso5">7) Paso 5 — Repository (existsByEmail)</a></li>
+      <li><a href="#paso6">8) Paso 6 — Service (reglas de negocio)</a></li>
+      <li><a href="#paso7">9) Paso 7 — Handler (mapeo DTO ↔ Entity)</a></li>
+      <li><a href="#paso8">10) Paso 8 — Controller (ApiResponse + Pageable)</a></li>
+      <li><a href="#paso9">11) Paso 9 — Seeder con Faker (app.seed.*)</a></li>
+      <li><a href="#paso10">12) Paso 10 — Pruebas en Swagger</a></li>
+      <li><a href="#checklist">Checklist final</a></li>
+    </ul>
+  </div>
+
+  <hr />
+
+  <section id="resultados">
+    <h2>1) Resultados esperados</h2>
+    <ul>
+      <li>El Controller usa DTOs, no expone la entidad directamente.</li>
+      <li>La API responde siempre con <code>ApiResponse</code>.</li>
+      <li>Manejo global de errores: validación (400), negocio (400), not found (404), error genérico (500).</li>
+      <li>Listado paginado: <code>/api/estudiantes?page=0&size=5&sort=nombre,asc</code>.</li>
+      <li>Seeder con Faker controlado por <code>app.seed.enabled</code> y <code>app.seed.cantidad</code>.</li>
+      <li>Pruebas completas desde Swagger.</li>
+    </ul>
+  </section>
+
+  <section id="estructura">
+    <h2>2) Estructura final esperada</h2>
+    <pre>co.edu.demoacademico
+├── api
+│   ├── ApiResponse.java
+│   └── ResponseBuilder.java
+├── controller
+│   ├── EstudianteController.java
+│   └── GlobalExceptionHandler.java
+├── dto
+│   ├── EstudianteCreateDTO.java
+│   ├── EstudianteUpdateDTO.java
+│   └── EstudianteDTO.java
+├── exception
+│   ├── BusinessException.java
+│   └── NotFoundException.java
+├── handler
+│   └── EstudianteHandler.java
+├── model
+│   └── Estudiante.java
+├── repository
+│   └── EstudianteRepository.java
+├── service
+│   ├── EstudianteService.java
+│   └── EstudianteServiceImpl.java
+└── config
+    └── DataSeeder.java</pre>
+  </section>
+
+  <hr />
+
+  <section id="paso1">
+    <h2>3) Paso 1 — Crear DTOs</h2>
+
+    <h4>3.1 Archivo: <code>src/main/java/co/edu/demoacademico/dto/EstudianteCreateDTO.java</code></h4>
+    <pre><code>package co.edu.demoacademico.dto;
+
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotBlank;
+
+public class EstudianteCreateDTO {
+
+    @NotBlank(message = "El nombre es obligatorio")
+    private String nombre;
+
+    @NotBlank(message = "El email es obligatorio")
+    @Email(message = "Formato de email inválido")
+    private String email;
+
+    public EstudianteCreateDTO() {}
+
+    public String getNombre() { return nombre; }
+    public void setNombre(String nombre) { this.nombre = nombre; }
+
+    public String getEmail() { return email; }
+    public void setEmail(String email) { this.email = email; }
+}</code></pre>
+
+    <h4>3.2 Archivo: <code>src/main/java/co/edu/demoacademico/dto/EstudianteUpdateDTO.java</code></h4>
+    <pre><code>package co.edu.demoacademico.dto;
+
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotBlank;
+
+public class EstudianteUpdateDTO {
+
+    @NotBlank(message = "El nombre es obligatorio")
+    private String nombre;
+
+    @NotBlank(message = "El email es obligatorio")
+    @Email(message = "Formato de email inválido")
+    private String email;
+
+    public EstudianteUpdateDTO() {}
+
+    public String getNombre() { return nombre; }
+    public void setNombre(String nombre) { this.nombre = nombre; }
+
+    public String getEmail() { return email; }
+    public void setEmail(String email) { this.email = email; }
+}</code></pre>
+
+    <h4>3.3 Archivo: <code>src/main/java/co/edu/demoacademico/dto/EstudianteDTO.java</code></h4>
+    <pre><code>package co.edu.demoacademico.dto;
+
+public class EstudianteDTO {
+
+    private Long id;
+    private String nombre;
+    private String email;
+
+    public EstudianteDTO() {}
+
+    public Long getId() { return id; }
+    public void setId(Long id) { this.id = id; }
+
+    public String getNombre() { return nombre; }
+    public void setNombre(String nombre) { this.nombre = nombre; }
+
+    public String getEmail() { return email; }
+    public void setEmail(String email) { this.email = email; }
+}</code></pre>
+  </section>
+
+  <hr />
+
+  <section id="paso2">
+    <h2>4) Paso 2 — ApiResponse + ResponseBuilder</h2>
+
+    <h4>4.1 Archivo: <code>src/main/java/co/edu/demoacademico/api/ApiResponse.java</code></h4>
+    <pre><code>package co.edu.demoacademico.api;
+
+import java.time.Instant;
+
+public class ApiResponse&lt;T&gt; {
+
+    private boolean success;
+    private String message;
+    private T data;
+    private Instant timestamp = Instant.now();
+
+    public ApiResponse() {}
+
+    public ApiResponse(boolean success, String message, T data) {
+        this.success = success;
+        this.message = message;
+        this.data = data;
+        this.timestamp = Instant.now();
+    }
+
+    public boolean isSuccess() { return success; }
+    public void setSuccess(boolean success) { this.success = success; }
+
+    public String getMessage() { return message; }
+    public void setMessage(String message) { this.message = message; }
+
+    public T getData() { return data; }
+    public void setData(T data) { this.data = data; }
+
+    public Instant getTimestamp() { return timestamp; }
+    public void setTimestamp(Instant timestamp) { this.timestamp = timestamp; }
+}</code></pre>
+
+    <h4>4.2 Archivo: <code>src/main/java/co/edu/demoacademico/api/ResponseBuilder.java</code></h4>
+    <pre><code>package co.edu.demoacademico.api;
+
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+
+public class ResponseBuilder {
+
+    private ResponseBuilder() {}
+
+    public static &lt;T&gt; ResponseEntity&lt;ApiResponse&lt;T&gt;&gt; ok(String message, T data) {
+        return ResponseEntity.ok(new ApiResponse&lt;&gt;(true, message, data));
+    }
+
+    public static &lt;T&gt; ResponseEntity&lt;ApiResponse&lt;T&gt;&gt; created(String message, T data) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(new ApiResponse&lt;&gt;(true, message, data));
+    }
+
+    public static ResponseEntity&lt;ApiResponse&lt;Object&gt;&gt; badRequest(String message) {
+        return ResponseEntity.badRequest()
+                .body(new ApiResponse&lt;&gt;(false, message, null));
+    }
+
+    public static ResponseEntity&lt;ApiResponse&lt;Object&gt;&gt; notFound(String message) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(new ApiResponse&lt;&gt;(false, message, null));
+    }
+
+    public static ResponseEntity&lt;ApiResponse&lt;Object&gt;&gt; internalError(String message) {
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(new ApiResponse&lt;&gt;(false, message, null));
+    }
+}</code></pre>
+  </section>
+
+  <hr />
+
+  <section id="paso3">
+    <h2>5) Paso 3 — Excepciones (NotFound / Business)</h2>
+
+    <h4>5.1 Archivo: <code>src/main/java/co/edu/demoacademico/exception/NotFoundException.java</code></h4>
+    <pre><code>package co.edu.demoacademico.exception;
+
+public class NotFoundException extends RuntimeException {
+    public NotFoundException(String message) {
+        super(message);
+    }
+}</code></pre>
+
+    <h4>5.2 Archivo: <code>src/main/java/co/edu/demoacademico/exception/BusinessException.java</code></h4>
+    <pre><code>package co.edu.demoacademico.exception;
+
+public class BusinessException extends RuntimeException {
+    public BusinessException(String message) {
+        super(message);
+    }
+}</code></pre>
+  </section>
+
+  <hr />
+
+  <section id="paso4">
+    <h2>6) Paso 4 — GlobalExceptionHandler</h2>
+
+    <h4>Archivo: <code>src/main/java/co/edu/demoacademico/controller/GlobalExceptionHandler.java</code></h4>
+    <pre><code>package co.edu.demoacademico.controller;
+
+import co.edu.demoacademico.api.ApiResponse;
+import co.edu.demoacademico.api.ResponseBuilder;
+import co.edu.demoacademico.exception.BusinessException;
+import co.edu.demoacademico.exception.NotFoundException;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.RestControllerAdvice;
+
+import java.util.HashMap;
+import java.util.Map;
+
+@RestControllerAdvice
+public class GlobalExceptionHandler {
+
+    @ExceptionHandler(NotFoundException.class)
+    public ResponseEntity&lt;ApiResponse&lt;Object&gt;&gt; handleNotFound(NotFoundException ex) {
+        return ResponseBuilder.notFound(ex.getMessage());
+    }
+
+    @ExceptionHandler(BusinessException.class)
+    public ResponseEntity&lt;ApiResponse&lt;Object&gt;&gt; handleBusiness(BusinessException ex) {
+        return ResponseBuilder.badRequest(ex.getMessage());
+    }
+
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ResponseEntity&lt;ApiResponse&lt;Map&lt;String, String&gt;&gt;&gt; handleValidation(MethodArgumentNotValidException ex) {
+        Map&lt;String, String&gt; errors = new HashMap&lt;&gt;();
+        ex.getBindingResult().getFieldErrors()
+                .forEach(fe -&gt; errors.put(fe.getField(), fe.getDefaultMessage()));
+
+        return ResponseEntity.badRequest()
+                .body(new ApiResponse&lt;&gt;(false, "Validación fallida", errors));
+    }
+
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity&lt;ApiResponse&lt;Object&gt;&gt; handleGeneric(Exception ex) {
+        return ResponseBuilder.internalError("Error inesperado");
+    }
+}</code></pre>
+  </section>
+
+  <hr />
+
+  <section id="paso5">
+    <h2>7) Paso 5 — Repository (existsByEmail)</h2>
+
+    <h4>Archivo: <code>src/main/java/co/edu/demoacademico/repository/EstudianteRepository.java</code></h4>
+    <pre><code>package co.edu.demoacademico.repository;
+
+import co.edu.demoacademico.model.Estudiante;
+import org.springframework.data.jpa.repository.JpaRepository;
+
+public interface EstudianteRepository extends JpaRepository&lt;Estudiante, Long&gt; {
+
+    boolean existsByEmail(String email);
+
+    boolean existsByEmailAndIdNot(String email, Long id);
+}</code></pre>
+
+    <div class="note">
+      Si tu repo tenía <code>findByEmail</code>, lo puedes conservar. En este laboratorio se usan
+      <code>existsByEmail</code> y <code>existsByEmailAndIdNot</code> para validar duplicados.
+    </div>
+  </section>
+
+  <hr />
+
+  <section id="paso6">
+    <h2>8) Paso 6 — Service (reglas de negocio)</h2>
+
+    <h4>8.1 Archivo: <code>src/main/java/co/edu/demoacademico/service/EstudianteService.java</code></h4>
+    <pre><code>package co.edu.demoacademico.service;
+
+import co.edu.demoacademico.model.Estudiante;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+
+public interface EstudianteService {
+
+    Estudiante crear(Estudiante e);
+
+    Estudiante obtenerPorId(Long id);
+
+    Page&lt;Estudiante&gt; listar(Pageable pageable);
+
+    Estudiante actualizar(Long id, Estudiante e);
+
+    void eliminar(Long id);
+}</code></pre>
+
+    <h4>8.2 Archivo: <code>src/main/java/co/edu/demoacademico/service/EstudianteServiceImpl.java</code></h4>
+    <pre><code>package co.edu.demoacademico.service;
+
+import co.edu.demoacademico.exception.BusinessException;
+import co.edu.demoacademico.exception.NotFoundException;
+import co.edu.demoacademico.model.Estudiante;
+import co.edu.demoacademico.repository.EstudianteRepository;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+@Service
+@Transactional
+public class EstudianteServiceImpl implements EstudianteService {
+
+    private final EstudianteRepository repo;
+
+    public EstudianteServiceImpl(EstudianteRepository repo) {
+        this.repo = repo;
+    }
+
+    @Override
+    public Estudiante crear(Estudiante e) {
+        if (repo.existsByEmail(e.getEmail())) {
+            throw new BusinessException("Ya existe un estudiante con ese email");
+        }
+        return repo.save(e);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Estudiante obtenerPorId(Long id) {
+        return repo.findById(id)
+                .orElseThrow(() -&gt; new NotFoundException("Estudiante no encontrado: " + id));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page&lt;Estudiante&gt; listar(Pageable pageable) {
+        return repo.findAll(pageable);
+    }
+
+    @Override
+    public Estudiante actualizar(Long id, Estudiante e) {
+        Estudiante actual = obtenerPorId(id);
+
+        if (repo.existsByEmailAndIdNot(e.getEmail(), id)) {
+            throw new BusinessException("El email ya lo usa otro estudiante");
+        }
+
+        actual.setNombre(e.getNombre());
+        actual.setEmail(e.getEmail());
+        return repo.save(actual);
+    }
+
+    @Override
+    public void eliminar(Long id) {
+        Estudiante actual = obtenerPorId(id);
+        repo.delete(actual);
+    }
+}</code></pre>
+  </section>
+
+  <hr />
+
+  <section id="paso7">
+    <h2>9) Paso 7 — Handler (mapeo DTO ↔ Entity)</h2>
+
+    <h4>Archivo: <code>src/main/java/co/edu/demoacademico/handler/EstudianteHandler.java</code></h4>
+    <pre><code>package co.edu.demoacademico.handler;
+
+import co.edu.demoacademico.dto.EstudianteCreateDTO;
+import co.edu.demoacademico.dto.EstudianteDTO;
+import co.edu.demoacademico.dto.EstudianteUpdateDTO;
+import co.edu.demoacademico.model.Estudiante;
+import co.edu.demoacademico.service.EstudianteService;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.stereotype.Component;
+
+@Component
+public class EstudianteHandler {
+
+    private final EstudianteService service;
+
+    public EstudianteHandler(EstudianteService service) {
+        this.service = service;
+    }
+
+    public EstudianteDTO crear(EstudianteCreateDTO in) {
+        Estudiante entity = new Estudiante();
+        entity.setNombre(in.getNombre());
+        entity.setEmail(in.getEmail());
+
+        Estudiante saved = service.crear(entity);
+        return toDto(saved);
+    }
+
+    public EstudianteDTO obtener(Long id) {
+        return toDto(service.obtenerPorId(id));
+    }
+
+    public Page&lt;EstudianteDTO&gt; listar(Pageable pageable) {
+        return service.listar(pageable).map(this::toDto);
+    }
+
+    public EstudianteDTO actualizar(Long id, EstudianteUpdateDTO in) {
+        Estudiante entity = new Estudiante();
+        entity.setNombre(in.getNombre());
+        entity.setEmail(in.getEmail());
+
+        Estudiante updated = service.actualizar(id, entity);
+        return toDto(updated);
+    }
+
+    public void eliminar(Long id) {
+        service.eliminar(id);
+    }
+
+    private EstudianteDTO toDto(Estudiante e) {
+        EstudianteDTO dto = new EstudianteDTO();
+        dto.setId(e.getId());
+        dto.setNombre(e.getNombre());
+        dto.setEmail(e.getEmail());
+        return dto;
+    }
+}</code></pre>
+  </section>
+
+  <hr />
+
+  <section id="paso8">
+    <h2>10) Paso 8 — Controller (ApiResponse + Pageable)</h2>
+
+    <h4>Archivo: <code>src/main/java/co/edu/demoacademico/controller/EstudianteController.java</code></h4>
+    <pre><code>package co.edu.demoacademico.controller;
+
+import co.edu.demoacademico.api.ApiResponse;
+import co.edu.demoacademico.api.ResponseBuilder;
+import co.edu.demoacademico.dto.EstudianteCreateDTO;
+import co.edu.demoacademico.dto.EstudianteDTO;
+import co.edu.demoacademico.dto.EstudianteUpdateDTO;
+import co.edu.demoacademico.handler.EstudianteHandler;
+import jakarta.validation.Valid;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+@RestController
+@RequestMapping("/api/estudiantes")
+public class EstudianteController {
+
+    private final EstudianteHandler handler;
+
+    public EstudianteController(EstudianteHandler handler) {
+        this.handler = handler;
+    }
+
+    @PostMapping
+    public ResponseEntity&lt;ApiResponse&lt;EstudianteDTO&gt;&gt; crear(@Valid @RequestBody EstudianteCreateDTO in) {
+        return ResponseBuilder.created("Estudiante creado", handler.crear(in));
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity&lt;ApiResponse&lt;EstudianteDTO&gt;&gt; obtener(@PathVariable Long id) {
+        return ResponseBuilder.ok("OK", handler.obtener(id));
+    }
+
+    // Ejemplo: /api/estudiantes?page=0&amp;size=5&amp;sort=nombre,asc
+    @GetMapping
+    public ResponseEntity&lt;ApiResponse&lt;Page&lt;EstudianteDTO&gt;&gt;&gt; listar(Pageable pageable) {
+        return ResponseBuilder.ok("OK", handler.listar(pageable));
+    }
+
+    @PutMapping("/{id}")
+    public ResponseEntity&lt;ApiResponse&lt;EstudianteDTO&gt;&gt; actualizar(
+            @PathVariable Long id,
+            @Valid @RequestBody EstudianteUpdateDTO in
+    ) {
+        return ResponseBuilder.ok("Estudiante actualizado", handler.actualizar(id, in));
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity&lt;ApiResponse&lt;Object&gt;&gt; eliminar(@PathVariable Long id) {
+        handler.eliminar(id);
+        return ResponseBuilder.ok("Estudiante eliminado", null);
+    }
+}</code></pre>
+
+    <div class="note">
+      Si vienes del Lab 01, aquí el cambio clave es: el Controller ya no recibe/retorna la entidad directamente,
+      sino DTOs, y toda respuesta se estandariza con <code>ApiResponse</code>.
+    </div>
+  </section>
+
+  <hr />
+
+  <section id="paso9">
+    <h2>11) Paso 9 — Seeder con Faker (app.seed.*)</h2>
+
+    <h4>Archivo: <code>src/main/java/co/edu/demoacademico/config/DataSeeder.java</code></h4>
+    <pre><code>package co.edu.demoacademico.config;
+
+import co.edu.demoacademico.model.Estudiante;
+import co.edu.demoacademico.repository.EstudianteRepository;
+import com.github.javafaker.Faker;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.CommandLineRunner;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+
+import java.util.Locale;
+
+@Configuration
+public class DataSeeder {
+
+    @Value("${app.seed.enabled:true}")
+    private boolean enabled;
+
+    @Value("${app.seed.cantidad:100}")
+    private int cantidad;
+
+    @Bean
+    CommandLineRunner seedEstudiantes(EstudianteRepository repo) {
+        return args -&gt; {
+            if (!enabled) return;
+            if (repo.count() &gt; 0) return;
+
+            Faker faker = new Faker(new Locale("es"));
+            int creados = 0;
+
+            while (creados &lt; cantidad) {
+                String nombre = faker.name().fullName();
+                String email = ("est" + creados + "_" + faker.internet().emailAddress())
+                        .toLowerCase()
+                        .replace(" ", "")
+                        .replace("..", ".");
+
+                Estudiante e = new Estudiante();
+                e.setNombre(nombre);
+                e.setEmail(email);
+
+                try {
+                    repo.save(e);
+                    creados++;
+                } catch (Exception ex) {
+                    // Si el email es único y falla, reintenta
+                }
+            }
+        };
+    }
+}</code></pre>
+
+    <div class="note">
+      Para que el seeder funcione, asegúrate de tener JavaFaker en el <code>pom.xml</code>:
+      <code>com.github.javafaker:javafaker:1.0.2</code>.
+    </div>
+  </section>
+
+  <hr />
+
+  <section id="paso10">
+    <h2>12) Paso 10 — Pruebas en Swagger</h2>
+
+    <h3>12.1 Abrir Swagger</h3>
+    <pre>http://localhost:8080/swagger-ui.html</pre>
+
+    <h3>12.2 Casos mínimos de prueba</h3>
+    <ol>
+      <li><strong>POST</strong> estudiante válido → HTTP 201</li>
+      <li><strong>POST</strong> email inválido → HTTP 400 (validación)</li>
+      <li><strong>POST</strong> email duplicado → HTTP 400 (business)</li>
+      <li><strong>GET</strong> id inexistente → HTTP 404</li>
+      <li><strong>GET</strong> paginado + sort → HTTP 200</li>
+    </ol>
+
+    <h3>12.3 JSON de ejemplo (POST)</h3>
+    <pre>{
+  "nombre": "Ana Pérez",
+  "email": "ana.perez@demo.com"
+}</pre>
+
+    <h3>12.4 Ejemplo de paginación</h3>
+    <pre>/api/estudiantes?page=0&amp;size=5&amp;sort=nombre,asc</pre>
+  </section>
+
+  <hr />
+
+  <section id="checklist">
+    <h2>Checklist final</h2>
+    <ul>
+      <li>DTOs creados y usados por el Controller.</li>
+      <li>Respuesta estándar ApiResponse en todos los endpoints.</li>
+      <li>GlobalExceptionHandler configurado (400/404/500).</li>
+      <li>Reglas de negocio: email duplicado controlado.</li>
+      <li>Paginación con Pageable funcionando.</li>
+      <li>Seeder con Faker funcionando según app.seed.*</li>
+      <li>Pruebas completas desde Swagger.</li>
+    </ul>
+  </section>
+
+  <hr />
+
+  <p class="small">
+    Ingeniería de Software III — Laboratorio práctico (Lab 02).  
+    Continuación del módulo Estudiantes con mejoras de robustez y mantenibilidad.
+  </p>
+
+</main>
+
+</body>
+</html>
