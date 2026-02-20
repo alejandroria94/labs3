@@ -650,7 +650,7 @@ public class EstudianteController {
 
     // Ejemplo: /api/estudiantes?page=0&amp;size=5&amp;sort=nombre,asc
     @GetMapping
-    public ResponseEntity&lt;ApiResponse&lt;Page&lt;EstudianteDTO&gt;&gt;&gt; listar(Pageable pageable) {
+    public ResponseEntity&lt;ApiResponse&lt;Page&lt;EstudianteDTO&gt;&gt;&gt; listar(@ParameterObject Pageable pageable) {
         return ResponseBuilder.ok("OK", handler.listar(pageable));
     }
 
@@ -884,7 +884,7 @@ public class EstudianteController {
 
     // Ejemplo: /api/estudiantes/pagina?page=0&amp;size=5&amp;sort=nombre,asc
     @GetMapping("/pagina")
-    public Page&lt;Estudiante&gt; listarPaginado(Pageable pageable) {
+    public Page&lt;Estudiante&gt; listarPaginado(@ParameterObject Pageable pageable) {
         return service.listar(pageable);
     }
 
