@@ -1,168 +1,139 @@
-
 <!doctype html>
 <html lang="es">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Ingeniería de Software III - Laboratorios</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <style>
-    body { font-family: Arial, Helvetica, sans-serif; margin: 0; color: #111; }
-    header { padding: 22px 18px; background: #fafafa; border-bottom: 1px solid #e6e6e6; }
-    header h1 { margin: 0 0 6px 0; font-size: 22px; }
-    header p { margin: 0; color: #444; }
-
-    main { max-width: 1100px; margin: 0 auto; padding: 18px; }
-    .tabs { display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0 14px; }
-    .tab {
-      border: 1px solid #d7d7d7;
-      background: #fff;
-      border-radius: 999px;
-      padding: 8px 12px;
-      cursor: pointer;
-      user-select: none;
-      font-size: 14px;
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      background: #f8f9fa;
     }
-    .tab.active { background: #eef3ff; border-color: #b7c8ff; }
-    .panel { display: none; border: 1px solid #e6e6e6; border-radius: 12px; padding: 14px; }
-    .panel.active { display: block; }
 
-    a { color: #0b57d0; text-decoration: none; }
-    a:hover { text-decoration: underline; }
+    header {
+      background: #1f3c88;
+      color: white;
+      padding: 25px;
+      text-align: center;
+    }
 
-    .grid { display: grid; grid-template-columns: 1fr; gap: 12px; }
-    @media (min-width: 900px) { .grid { grid-template-columns: 1.1fr 0.9fr; } }
+    main {
+      max-width: 1100px;
+      margin: auto;
+      padding: 30px;
+    }
 
-    .card { border: 1px solid #e6e6e6; border-radius: 12px; padding: 14px; background: #fff; }
-    .small { color: #666; font-size: 12px; }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+      gap: 20px;
+    }
 
-    footer { margin-top: 22px; padding-top: 12px; border-top: 1px solid #eee; color: #666; font-size: 12px; }
-    code { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+    .card {
+      background: white;
+      padding: 20px;
+      border-radius: 10px;
+      border: 1px solid #ddd;
+      transition: 0.2s;
+    }
+
+    .card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 6px 18px rgba(0,0,0,0.08);
+    }
+
+    .card h3 {
+      margin-top: 0;
+      color: #1f3c88;
+    }
+
+    a {
+      text-decoration: none;
+      color: #1f3c88;
+      font-weight: bold;
+    }
+
+    footer {
+      margin-top: 40px;
+      text-align: center;
+      font-size: 13px;
+      color: #666;
+    }
   </style>
 </head>
 
 <body>
+
 <header>
-  <h1>Ingeniería de Software III — Laboratorios</h1>
-  <p>Repositorio público de guías y laboratorios (Spring Boot / Arquitectura / Buenas prácticas).</p>
+  <h1>Ingeniería de Software III</h1>
+  <p>Repositorio oficial de Laboratorios</p>
 </header>
 
 <main>
 
-  <div class="tabs" role="tablist" aria-label="Laboratorios">
-    <button class="tab active" role="tab" aria-selected="true" aria-controls="panel-home" id="tab-home">Inicio</button>
-    <button class="tab" role="tab" aria-selected="false" aria-controls="panel-lab1" id="tab-lab1">Lab 01</button>
-    <button class="tab" role="tab" aria-selected="false" aria-controls="panel-lab2" id="tab-lab2">Lab 02</button>
-    <button class="tab" role="tab" aria-selected="false" aria-controls="panel-lab3" id="tab-lab3">Lab 03</button>
+  <h2>Laboratorios disponibles</h2>
+
+  <div class="grid">
+
+    <div class="card">
+      <h3>Lab 01</h3>
+      <a href="labs/lab-01/">Abrir laboratorio →</a>
+    </div>
+
+    <div class="card">
+      <h3>Lab 02</h3>
+      <a href="labs/lab-02/">Abrir laboratorio →</a>
+    </div>
+
+    <div class="card">
+      <h3>Lab 03</h3>
+      <a href="labs/lab-03/">Abrir laboratorio →</a>
+    </div>
+
+    <div class="card">
+      <h3>Lab 04</h3>
+      <a href="labs/lab-04/">Abrir laboratorio →</a>
+    </div>
+
+    <div class="card">
+      <h3>Lab 05</h3>
+      <a href="labs/lab-05/">Abrir laboratorio →</a>
+    </div>
+
+    <div class="card">
+      <h3>Lab 06</h3>
+      <a href="labs/lab-06/">Abrir laboratorio →</a>
+    </div>
+
+    <div class="card">
+      <h3>Lab 07</h3>
+      <a href="labs/lab-07/">Abrir laboratorio →</a>
+    </div>
+
+    <div class="card">
+      <h3>Lab 08</h3>
+      <a href="labs/lab-08/">Abrir laboratorio →</a>
+    </div>
+
+    <div class="card">
+      <h3>Lab 09</h3>
+      <a href="labs/lab-09/">Abrir laboratorio →</a>
+    </div>
+
+    <div class="card">
+      <h3>Lab 10</h3>
+      <a href="labs/lab-10/">Abrir laboratorio →</a>
+    </div>
+
   </div>
 
-  <!-- INICIO -->
-  <section class="panel active" role="tabpanel" id="panel-home" aria-labelledby="tab-home">
-    <div class="grid">
-      <div class="card">
-        <h2 style="margin-top:0;">Cómo usar este sitio</h2>
-        <ol>
-          <li>Selecciona una pestaña (Lab 01, Lab 02, …).</li>
-          <li>Abre el laboratorio completo desde el enlace del panel.</li>
-          <li>Para agregar nuevos laboratorios:
-            <ul>
-              <li>Crea un archivo HTML en <code>/labs/lab-XX.html</code></li>
-              <li>Actualiza esta portada para incluir la nueva pestaña + enlace.</li>
-            </ul>
-          </li>
-        </ol>
-
-        <p class="small">
-          Sugerencia: mantén un nombre consistente: <code>lab-01.html</code>, <code>lab-02.html</code>, etc.
-        </p>
-      </div>
-
-      <div class="card">
-        <h2 style="margin-top:0;">Estructura recomendada</h2>
-        <pre style="background:#f6f8fa;border:1px solid #e6e6e6;border-radius:10px;padding:12px;overflow:auto;">
-/index.html
-/labs
-  lab-01.html
-  lab-02.html
-  lab-03.html
-/assets
-  (opcional: imágenes, css)
-        </pre>
-
-        <p class="small">
-          GitHub Pages publica automáticamente el contenido del repositorio. El archivo <code>index.html</code>
-          es la portada.
-        </p>
-      </div>
-    </div>
-  </section>
-
-  <!-- LAB 01 -->
-  <section class="panel" role="tabpanel" id="panel-lab1" aria-labelledby="tab-lab1">
-    <h2 style="margin-top:0;">Lab 01 — API REST Estudiantes (demo-academico)</h2>
-    <p>
-      Implementación de CRUD + DTO + ApiResponse + Excepciones + Paginación + Seeder (Faker) + Swagger.
-    </p>
-    <p>
-      Abrir laboratorio completo:
-      <a href="./labs/lab-01.html">/labs/lab-01.html</a>
-    </p>
-  </section>
-
-  <!-- LAB 02 -->
-  <section class="panel" role="tabpanel" id="panel-lab2" aria-labelledby="tab-lab2">
-    <h2 style="margin-top:0;">Lab 02 — (pendiente)</h2>
-    <p>Publica aquí el siguiente laboratorio. Ejemplo: capa Handler + ModelMapper + Pruebas unitarias.</p>
-    <p>
-      Archivo esperado:
-      <a href="./labs/lab-02.html">/labs/lab-02.html</a>
-    </p>
-  </section>
-
-  <!-- LAB 03 -->
-  <section class="panel" role="tabpanel" id="panel-lab3" aria-labelledby="tab-lab3">
-    <h2 style="margin-top:0;">Lab 03 — (pendiente)</h2>
-    <p>Publica aquí el siguiente laboratorio.</p>
-    <p>
-      Archivo esperado:
-      <a href="./labs/lab-03.html">/labs/lab-03.html</a>
-    </p>
-  </section>
-
   <footer>
-    <div>© Ingeniería de Software III — Sitio de laboratorios</div>
-    <div class="small">Tip: para agregar Lab 04, duplica el patrón: pestaña + panel + archivo en /labs.</div>
+    © Ingeniería de Software III
   </footer>
 
 </main>
-
-<script>
-  // Tabs simple sin librerías
-  const tabs = Array.from(document.querySelectorAll(".tab"));
-  const panels = Array.from(document.querySelectorAll(".panel"));
-
-  function activate(tabId) {
-    tabs.forEach(t => {
-      const active = (t.id === tabId);
-      t.classList.toggle("active", active);
-      t.setAttribute("aria-selected", active ? "true" : "false");
-    });
-
-    panels.forEach(p => {
-      const active = (p.getAttribute("aria-labelledby") === tabId);
-      p.classList.toggle("active", active);
-    });
-  }
-
-  tabs.forEach(t => t.addEventListener("click", () => activate(t.id)));
-
-  // Permite abrir un tab por hash: #lab1, #lab2...
-  const hash = (location.hash || "").replace("#", "");
-  if (hash) {
-    const map = { home: "tab-home", lab1: "tab-lab1", lab2: "tab-lab2", lab3: "tab-lab3" };
-    if (map[hash]) activate(map[hash]);
-  }
-</script>
 
 </body>
 </html>
