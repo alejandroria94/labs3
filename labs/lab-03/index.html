@@ -2,24 +2,837 @@
 <html lang="es">
 <head>
   <meta charset="utf-8" />
-  <title>Lab XX</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Lab 03</title>
 
   <style>
-    body { font-family: Arial, sans-serif; margin: 40px; max-width: 1000px; }
-    h1, h2 { color: #1f3c88; }
-    pre { background: #f4f4f4; padding: 15px; border-radius: 8px; overflow-x: auto; }
-    a { color: #1f3c88; text-decoration: none; }
+    body { font-family: Arial, Helvetica, sans-serif; margin: 0; background: #ffffff; color: #111; }
+    header { padding: 18px 18px; border-bottom: 1px solid #e6e6e6; background: #fafafa; }
+    header a { color: #1f3c88; text-decoration: none; font-weight: bold; }
+    header a:hover { text-decoration: underline; }
+    main { max-width: 1000px; margin: 0 auto; padding: 18px; }
+    h1 { margin: 0 0 6px 0; color: #1f3c88; font-size: 20px; }
+    h2 { color: #1f3c88; }
+    h3 { color: #1f3c88; }
+    h4 { color: #1f3c88; margin-bottom: 8px; }
+    hr { border: 0; border-top: 1px solid #e6e6e6; margin: 18px 0; }
+    pre { background: #f6f8fa; border: 1px solid #e6e6e6; border-radius: 10px; padding: 12px; overflow: auto; }
+    code { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+    ul, ol { padding-left: 22px; }
+    .small { color: #555; font-size: 12px; }
+    .note { border-left: 4px solid #1f3c88; background: #eef5ff; padding: 10px 12px; border-radius: 8px; }
+    .warn { border-left: 4px solid #c0392b; background: #fff1f0; padding: 10px 12px; border-radius: 8px; }
+    .toc { border: 1px solid #e6e6e6; background: #fcfcfc; border-radius: 10px; padding: 12px; }
+    .toc ul { margin: 0; }
+    a { color: #1f3c88; }
   </style>
 </head>
 
 <body>
 
-<a href="../../index.html">← Volver a la portada</a>
+<header>
+  <a href="../../index.html">← Volver a la portada</a>
+  <div class="small" style="margin-top:6px;">Ingeniería de Software III — Laboratorios</div>
+</header>
 
-<h1>Lab XX</h1>
+<main>
 
-<p>Contenido del laboratorio...</p>
+  <h1>Lab 03</h1>
+  <h2>Evolución del sistema académico (Opción A): Programas + Asignaturas + Grupos + Matrícula (reglas de negocio, paginación, seeder, Swagger)</h2>
+
+  <p>
+    Partiendo del proyecto <strong>demo-academico</strong> (Lab 02 implementado con <strong>Opción A</strong>),
+    vas a evolucionar el dominio para construir el primer flujo real de negocio:
+    <strong>crear Programas</strong>, <strong>crear Asignaturas</strong>, <strong>abrir Grupos</strong> y
+    <strong>matricular Estudiantes</strong> con reglas mínimas.
+  </p>
+
+  <div class="note">
+    <strong>Punto de partida:</strong> ya existe el módulo <code>Estudiantes</code> con:
+    DTOs, <code>ApiResponse</code>, <code>ResponseBuilder</code>, <code>GlobalExceptionHandler</code>,
+    paginación y <code>Seeder</code> con Faker.
+    Verifica Swagger en <code>/swagger-ui.html</code>.
+  </div>
+
+  <div class="warn" style="margin-top:10px;">
+    <strong>Importante:</strong> Este laboratorio se desarrolla <strong>solo con Opción A</strong>.
+    Mantén el mismo estilo: <strong>DTO + Handler + ApiResponse</strong>. No mezcles con Opción B.
+  </div>
+
+  <hr />
+
+  <div class="toc">
+    <h3 style="margin-top:0;">Contenido</h3>
+    <ul>
+      <li><a href="#resultados">1) Resultados esperados</a></li>
+      <li><a href="#modelo">2) Modelo de dominio mínimo (relaciones)</a></li>
+      <li><a href="#config">3) Configuración requerida (application.yml)</a></li>
+      <li><a href="#estructura">4) Estructura esperada (Opción A)</a></li>
+      <li><a href="#pasos">5) Paso a paso (con código base)</a></li>
+      <li><a href="#reglas">6) Reglas de negocio obligatorias</a></li>
+      <li><a href="#seeder">7) Seeder evolutivo (Programas/Asignaturas/Grupos)</a></li>
+      <li><a href="#endpoints">8) Endpoints mínimos y pruebas en Swagger</a></li>
+      <li><a href="#entregable">9) Entregable</a></li>
+      <li><a href="#checklist">Checklist final</a></li>
+    </ul>
+  </div>
+
+  <hr />
+
+  <section id="resultados">
+    <h2>1) Resultados esperados</h2>
+    <ul>
+      <li>CRUD funcional de <strong>Programa</strong>, <strong>Asignatura</strong> y <strong>Grupo</strong>.</li>
+      <li>Flujo funcional de <strong>Matrícula</strong> (POST matricular) con reglas mínimas.</li>
+      <li>Paginación funcional en mínimo <strong>2 listados</strong> (ej: Programas y Grupos).</li>
+      <li>Errores controlados por <code>GlobalExceptionHandler</code> devolviendo <code>ApiResponse</code>.</li>
+      <li>Seeder extendido con Faker para Programas/Asignaturas/Grupos (opcional: estudiantes si ya existe).</li>
+      <li>Pruebas realizadas desde Swagger (<code>/swagger-ui.html</code>).</li>
+    </ul>
+  </section>
+
+  <hr />
+
+  <section id="modelo">
+    <h2>2) Modelo de dominio mínimo (relaciones)</h2>
+    <p>Vas a construir un dominio mínimo con estas entidades y relaciones:</p>
+
+    <ul>
+      <li><strong>Programa</strong> (1) — (N) <strong>Asignatura</strong></li>
+      <li><strong>Asignatura</strong> (1) — (N) <strong>Grupo</strong></li>
+      <li><strong>Estudiante</strong> (N) — (N) <strong>Grupo</strong> mediante <strong>Matricula</strong></li>
+    </ul>
+
+    <div class="note">
+      <strong>Regla práctica:</strong> En JPA se implementa el N..N mediante la entidad intermedia <code>Matricula</code>
+      (no usar <code>@ManyToMany</code> directo en este laboratorio).
+    </div>
+  </section>
+
+  <hr />
+
+  <section id="config">
+    <h2>3) Configuración requerida (application.yml)</h2>
+    <p>Archivo: <code>src/main/resources/application.yml</code>. Extiende el seeder para múltiples entidades.</p>
+
+    <pre><code>app:
+  seed:
+    enabled: true
+    cantidad-estudiantes: 200
+    cantidad-programas: 3
+    cantidad-asignaturas: 12
+    cantidad-grupos: 30</code></pre>
+
+    <div class="note">
+      <strong>Tip:</strong> Si no quieres sembrar estudiantes (porque ya los tienes), puedes dejar
+      <code>cantidad-estudiantes</code> en 0.
+    </div>
+  </section>
+
+  <hr />
+
+  <section id="estructura">
+    <h2>4) Estructura esperada (Opción A)</h2>
+    <p>
+      Mantén el mismo estilo que el Lab 02: DTOs para entrada/salida, Handlers para mapping, Services con reglas,
+      y Controllers devolviendo <code>ApiResponse</code>.
+    </p>
+
+    <pre>co.edu.demoacademico
+├── api
+│   ├── ApiResponse.java
+│   └── ResponseBuilder.java
+├── controller
+│   ├── EstudianteController.java
+│   ├── ProgramaController.java
+│   ├── AsignaturaController.java
+│   ├── GrupoController.java
+│   ├── MatriculaController.java
+│   └── GlobalExceptionHandler.java
+├── dto
+│   ├── programa (ProgramaCreateDTO, ProgramaUpdateDTO, ProgramaDTO)
+│   ├── asignatura (AsignaturaCreateDTO, AsignaturaUpdateDTO, AsignaturaDTO)
+│   ├── grupo (GrupoCreateDTO, GrupoUpdateDTO, GrupoDTO)
+│   └── matricula (MatriculaCreateDTO, MatriculaDTO)
+├── exception
+│   ├── BusinessException.java
+│   └── NotFoundException.java
+├── handler
+│   ├── ProgramaHandler.java
+│   ├── AsignaturaHandler.java
+│   ├── GrupoHandler.java
+│   └── MatriculaHandler.java
+├── model
+│   ├── Estudiante.java
+│   ├── Programa.java
+│   ├── Asignatura.java
+│   ├── Grupo.java
+│   └── Matricula.java
+├── repository
+│   ├── EstudianteRepository.java
+│   ├── ProgramaRepository.java
+│   ├── AsignaturaRepository.java
+│   ├── GrupoRepository.java
+│   └── MatriculaRepository.java
+└── service
+    ├── ProgramaService.java / Impl
+    ├── AsignaturaService.java / Impl
+    ├── GrupoService.java / Impl
+    └── MatriculaService.java / Impl</pre>
+  </section>
+
+  <hr />
+
+  <section id="pasos">
+    <h2>5) Paso a paso (con código base)</h2>
+
+    <h3>5.1 Paso 1 — Crear entidades (model)</h3>
+
+    <h4>Archivo: <code>src/main/java/co/edu/demoacademico/model/Programa.java</code></h4>
+    <pre><code>package co.edu.demoacademico.model;
+
+import jakarta.persistence.*;
+
+@Entity
+public class Programa {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(nullable = false, unique = true)
+    private String codigo;
+
+    @Column(nullable = false)
+    private String nombre;
+
+    public Long getId() { return id; }
+    public void setId(Long id) { this.id = id; }
+
+    public String getCodigo() { return codigo; }
+    public void setCodigo(String codigo) { this.codigo = codigo; }
+
+    public String getNombre() { return nombre; }
+    public void setNombre(String nombre) { this.nombre = nombre; }
+}</code></pre>
+
+    <h4>Archivo: <code>src/main/java/co/edu/demoacademico/model/Asignatura.java</code></h4>
+    <pre><code>package co.edu.demoacademico.model;
+
+import jakarta.persistence.*;
+
+@Entity
+public class Asignatura {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(nullable = false)
+    private String codigo;
+
+    @Column(nullable = false)
+    private String nombre;
+
+    @Column(nullable = false)
+    private Integer creditos;
+
+    @ManyToOne(optional = false, fetch = FetchType.LAZY)
+    private Programa programa;
+
+    public Long getId() { return id; }
+    public void setId(Long id) { this.id = id; }
+
+    public String getCodigo() { return codigo; }
+    public void setCodigo(String codigo) { this.codigo = codigo; }
+
+    public String getNombre() { return nombre; }
+    public void setNombre(String nombre) { this.nombre = nombre; }
+
+    public Integer getCreditos() { return creditos; }
+    public void setCreditos(Integer creditos) { this.creditos = creditos; }
+
+    public Programa getPrograma() { return programa; }
+    public void setPrograma(Programa programa) { this.programa = programa; }
+}</code></pre>
+
+    <h4>Archivo: <code>src/main/java/co/edu/demoacademico/model/Grupo.java</code></h4>
+    <pre><code>package co.edu.demoacademico.model;
+
+import jakarta.persistence.*;
+
+@Entity
+public class Grupo {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    // Ej: "G1-2026-1" o "A1"
+    @Column(nullable = false)
+    private String codigoGrupo;
+
+    @Column(nullable = false)
+    private Integer cupoMax;
+
+    // PLUS (recomendado): horario mínimo para evolucionar en Lab 04
+    @Column(nullable = true)
+    private String dia; // LUNES, MARTES, ...
+
+    @Column(nullable = true)
+    private String horaInicio; // "08:00"
+    @Column(nullable = true)
+    private String horaFin;    // "10:00"
+
+    @ManyToOne(optional = false, fetch = FetchType.LAZY)
+    private Asignatura asignatura;
+
+    public Long getId() { return id; }
+    public void setId(Long id) { this.id = id; }
+
+    public String getCodigoGrupo() { return codigoGrupo; }
+    public void setCodigoGrupo(String codigoGrupo) { this.codigoGrupo = codigoGrupo; }
+
+    public Integer getCupoMax() { return cupoMax; }
+    public void setCupoMax(Integer cupoMax) { this.cupoMax = cupoMax; }
+
+    public String getDia() { return dia; }
+    public void setDia(String dia) { this.dia = dia; }
+
+    public String getHoraInicio() { return horaInicio; }
+    public void setHoraInicio(String horaInicio) { this.horaInicio = horaInicio; }
+
+    public String getHoraFin() { return horaFin; }
+    public void setHoraFin(String horaFin) { this.horaFin = horaFin; }
+
+    public Asignatura getAsignatura() { return asignatura; }
+    public void setAsignatura(Asignatura asignatura) { this.asignatura = asignatura; }
+}</code></pre>
+
+    <h4>Archivo: <code>src/main/java/co/edu/demoacademico/model/Matricula.java</code></h4>
+    <pre><code>package co.edu.demoacademico.model;
+
+import jakarta.persistence.*;
+import java.time.Instant;
+
+@Entity
+@Table(
+  uniqueConstraints = {
+    @UniqueConstraint(name = "uk_matricula_estudiante_grupo", columnNames = {"estudiante_id", "grupo_id"})
+  }
+)
+public class Matricula {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @ManyToOne(optional = false, fetch = FetchType.LAZY)
+    private Estudiante estudiante;
+
+    @ManyToOne(optional = false, fetch = FetchType.LAZY)
+    private Grupo grupo;
+
+    @Column(nullable = false)
+    private Instant fechaRegistro = Instant.now();
+
+    public Long getId() { return id; }
+    public void setId(Long id) { this.id = id; }
+
+    public Estudiante getEstudiante() { return estudiante; }
+    public void setEstudiante(Estudiante estudiante) { this.estudiante = estudiante; }
+
+    public Grupo getGrupo() { return grupo; }
+    public void setGrupo(Grupo grupo) { this.grupo = grupo; }
+
+    public Instant getFechaRegistro() { return fechaRegistro; }
+    public void setFechaRegistro(Instant fechaRegistro) { this.fechaRegistro = fechaRegistro; }
+}</code></pre>
+
+    <hr />
+
+    <h3>5.2 Paso 2 — Crear DTOs por módulo</h3>
+
+    <h4>Programa DTOs (ejemplo)</h4>
+    <pre><code>// src/main/java/co/edu/demoacademico/dto/programa/ProgramaCreateDTO.java
+package co.edu.demoacademico.dto.programa;
+
+import jakarta.validation.constraints.NotBlank;
+
+public class ProgramaCreateDTO {
+
+    @NotBlank(message = "El código es obligatorio")
+    private String codigo;
+
+    @NotBlank(message = "El nombre es obligatorio")
+    private String nombre;
+
+    public String getCodigo() { return codigo; }
+    public void setCodigo(String codigo) { this.codigo = codigo; }
+
+    public String getNombre() { return nombre; }
+    public void setNombre(String nombre) { this.nombre = nombre; }
+}</code></pre>
+
+    <pre><code>// src/main/java/co/edu/demoacademico/dto/programa/ProgramaDTO.java
+package co.edu.demoacademico.dto.programa;
+
+public class ProgramaDTO {
+    private Long id;
+    private String codigo;
+    private String nombre;
+
+    public Long getId() { return id; }
+    public void setId(Long id) { this.id = id; }
+
+    public String getCodigo() { return codigo; }
+    public void setCodigo(String codigo) { this.codigo = codigo; }
+
+    public String getNombre() { return nombre; }
+    public void setNombre(String nombre) { this.nombre = nombre; }
+}</code></pre>
+
+    <h4>Asignatura Create DTO (ejemplo con relación por id)</h4>
+    <pre><code>// src/main/java/co/edu/demoacademico/dto/asignatura/AsignaturaCreateDTO.java
+package co.edu.demoacademico.dto.asignatura;
+
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+
+public class AsignaturaCreateDTO {
+
+    @NotBlank(message = "El código es obligatorio")
+    private String codigo;
+
+    @NotBlank(message = "El nombre es obligatorio")
+    private String nombre;
+
+    @NotNull(message = "Los créditos son obligatorios")
+    @Min(value = 1, message = "Créditos mínimo: 1")
+    private Integer creditos;
+
+    @NotNull(message = "programaId es obligatorio")
+    private Long programaId;
+
+    public String getCodigo() { return codigo; }
+    public void setCodigo(String codigo) { this.codigo = codigo; }
+
+    public String getNombre() { return nombre; }
+    public void setNombre(String nombre) { this.nombre = nombre; }
+
+    public Integer getCreditos() { return creditos; }
+    public void setCreditos(Integer creditos) { this.creditos = creditos; }
+
+    public Long getProgramaId() { return programaId; }
+    public void setProgramaId(Long programaId) { this.programaId = programaId; }
+}</code></pre>
+
+    <h4>Grupo Create DTO (ejemplo con cupo + asignaturaId)</h4>
+    <pre><code>// src/main/java/co/edu/demoacademico/dto/grupo/GrupoCreateDTO.java
+package co.edu.demoacademico.dto.grupo;
+
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+
+public class GrupoCreateDTO {
+
+    @NotBlank(message = "El código del grupo es obligatorio")
+    private String codigoGrupo;
+
+    @NotNull(message = "cupoMax es obligatorio")
+    @Min(value = 1, message = "cupoMax mínimo: 1")
+    private Integer cupoMax;
+
+    private String dia; // opcional
+    private String horaInicio; // opcional
+    private String horaFin; // opcional
+
+    @NotNull(message = "asignaturaId es obligatorio")
+    private Long asignaturaId;
+
+    public String getCodigoGrupo() { return codigoGrupo; }
+    public void setCodigoGrupo(String codigoGrupo) { this.codigoGrupo = codigoGrupo; }
+
+    public Integer getCupoMax() { return cupoMax; }
+    public void setCupoMax(Integer cupoMax) { this.cupoMax = cupoMax; }
+
+    public String getDia() { return dia; }
+    public void setDia(String dia) { this.dia = dia; }
+
+    public String getHoraInicio() { return horaInicio; }
+    public void setHoraInicio(String horaInicio) { this.horaInicio = horaInicio; }
+
+    public String getHoraFin() { return horaFin; }
+    public void setHoraFin(String horaFin) { this.horaFin = horaFin; }
+
+    public Long getAsignaturaId() { return asignaturaId; }
+    public void setAsignaturaId(Long asignaturaId) { this.asignaturaId = asignaturaId; }
+}</code></pre>
+
+    <h4>Matrícula Create DTO (flujo principal)</h4>
+    <pre><code>// src/main/java/co/edu/demoacademico/dto/matricula/MatriculaCreateDTO.java
+package co.edu.demoacademico.dto.matricula;
+
+import jakarta.validation.constraints.NotNull;
+
+public class MatriculaCreateDTO {
+
+    @NotNull(message = "estudianteId es obligatorio")
+    private Long estudianteId;
+
+    @NotNull(message = "grupoId es obligatorio")
+    private Long grupoId;
+
+    public Long getEstudianteId() { return estudianteId; }
+    public void setEstudianteId(Long estudianteId) { this.estudianteId = estudianteId; }
+
+    public Long getGrupoId() { return grupoId; }
+    public void setGrupoId(Long grupoId) { this.grupoId = grupoId; }
+}</code></pre>
+
+    <hr />
+
+    <h3>5.3 Paso 3 — Repositories</h3>
+
+    <pre><code>// src/main/java/co/edu/demoacademico/repository/ProgramaRepository.java
+package co.edu.demoacademico.repository;
+
+import co.edu.demoacademico.model.Programa;
+import org.springframework.data.jpa.repository.JpaRepository;
+
+public interface ProgramaRepository extends JpaRepository&lt;Programa, Long&gt; {
+    boolean existsByCodigo(String codigo);
+}</code></pre>
+
+    <pre><code>// src/main/java/co/edu/demoacademico/repository/AsignaturaRepository.java
+package co.edu.demoacademico.repository;
+
+import co.edu.demoacademico.model.Asignatura;
+import org.springframework.data.jpa.repository.JpaRepository;
+
+public interface AsignaturaRepository extends JpaRepository&lt;Asignatura, Long&gt; {
+}</code></pre>
+
+    <pre><code>// src/main/java/co/edu/demoacademico/repository/GrupoRepository.java
+package co.edu.demoacademico.repository;
+
+import co.edu.demoacademico.model.Grupo;
+import org.springframework.data.jpa.repository.JpaRepository;
+
+public interface GrupoRepository extends JpaRepository&lt;Grupo, Long&gt; {
+}</code></pre>
+
+    <pre><code>// src/main/java/co/edu/demoacademico/repository/MatriculaRepository.java
+package co.edu.demoacademico.repository;
+
+import co.edu.demoacademico.model.Matricula;
+import org.springframework.data.jpa.repository.JpaRepository;
+
+public interface MatriculaRepository extends JpaRepository&lt;Matricula, Long&gt; {
+
+    boolean existsByEstudianteIdAndGrupoId(Long estudianteId, Long grupoId);
+
+    long countByGrupoId(Long grupoId);
+}</code></pre>
+
+    <hr />
+
+    <h3>5.4 Paso 4 — Services (reglas en matrícula)</h3>
+
+    <h4>MatriculaService (interfaz)</h4>
+    <pre><code>// src/main/java/co/edu/demoacademico/service/MatriculaService.java
+package co.edu.demoacademico.service;
+
+import co.edu.demoacademico.model.Matricula;
+
+public interface MatriculaService {
+    Matricula matricular(Long estudianteId, Long grupoId);
+}</code></pre>
+
+    <h4>MatriculaServiceImpl (implementación con reglas)</h4>
+    <pre><code>// src/main/java/co/edu/demoacademico/service/MatriculaServiceImpl.java
+package co.edu.demoacademico.service;
+
+import co.edu.demoacademico.exception.BusinessException;
+import co.edu.demoacademico.exception.NotFoundException;
+import co.edu.demoacademico.model.Estudiante;
+import co.edu.demoacademico.model.Grupo;
+import co.edu.demoacademico.model.Matricula;
+import co.edu.demoacademico.repository.EstudianteRepository;
+import co.edu.demoacademico.repository.GrupoRepository;
+import co.edu.demoacademico.repository.MatriculaRepository;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+@Service
+@Transactional
+public class MatriculaServiceImpl implements MatriculaService {
+
+    private final EstudianteRepository estudianteRepo;
+    private final GrupoRepository grupoRepo;
+    private final MatriculaRepository matriculaRepo;
+
+    public MatriculaServiceImpl(
+            EstudianteRepository estudianteRepo,
+            GrupoRepository grupoRepo,
+            MatriculaRepository matriculaRepo
+    ) {
+        this.estudianteRepo = estudianteRepo;
+        this.grupoRepo = grupoRepo;
+        this.matriculaRepo = matriculaRepo;
+    }
+
+    @Override
+    public Matricula matricular(Long estudianteId, Long grupoId) {
+
+        Estudiante estudiante = estudianteRepo.findById(estudianteId)
+                .orElseThrow(() -&gt; new NotFoundException("Estudiante no encontrado: " + estudianteId));
+
+        Grupo grupo = grupoRepo.findById(grupoId)
+                .orElseThrow(() -&gt; new NotFoundException("Grupo no encontrado: " + grupoId));
+
+        // Regla 1: no duplicado
+        if (matriculaRepo.existsByEstudianteIdAndGrupoId(estudianteId, grupoId)) {
+            throw new BusinessException("El estudiante ya está matriculado en ese grupo");
+        }
+
+        // Regla 2: cupo
+        long matriculados = matriculaRepo.countByGrupoId(grupoId);
+        if (matriculados &gt;= grupo.getCupoMax()) {
+            throw new BusinessException("El grupo no tiene cupo disponible");
+        }
+
+        Matricula m = new Matricula();
+        m.setEstudiante(estudiante);
+        m.setGrupo(grupo);
+        return matriculaRepo.save(m);
+    }
+}</code></pre>
+
+    <div class="note">
+      <strong>Nota:</strong> En este Lab 03 no implementamos choque de horario. Eso puede ser un <strong>plus</strong> o el Lab 04.
+    </div>
+
+    <hr />
+
+    <h3>5.5 Paso 5 — Handlers (DTO ↔ Entity)</h3>
+
+    <pre><code>// src/main/java/co/edu/demoacademico/handler/MatriculaHandler.java
+package co.edu.demoacademico.handler;
+
+import co.edu.demoacademico.dto.matricula.MatriculaCreateDTO;
+import co.edu.demoacademico.model.Matricula;
+import co.edu.demoacademico.service.MatriculaService;
+import org.springframework.stereotype.Component;
+
+@Component
+public class MatriculaHandler {
+
+    private final MatriculaService service;
+
+    public MatriculaHandler(MatriculaService service) {
+        this.service = service;
+    }
+
+    public Matricula crear(MatriculaCreateDTO in) {
+        return service.matricular(in.getEstudianteId(), in.getGrupoId());
+    }
+}</code></pre>
+
+    <div class="note">
+      <strong>Guía:</strong> Repite el patrón del Lab 02 para Programa/Asignatura/Grupo:
+      <code>Handler</code> arma la entidad, llama al <code>Service</code> y devuelve DTO.
+    </div>
+
+    <hr />
+
+    <h3>5.6 Paso 6 — Controllers (ApiResponse + Pageable)</h3>
+
+    <h4>MatriculaController (flujo principal)</h4>
+    <pre><code>// src/main/java/co/edu/demoacademico/controller/MatriculaController.java
+package co.edu.demoacademico.controller;
+
+import co.edu.demoacademico.api.ApiResponse;
+import co.edu.demoacademico.api.ResponseBuilder;
+import co.edu.demoacademico.dto.matricula.MatriculaCreateDTO;
+import co.edu.demoacademico.handler.MatriculaHandler;
+import co.edu.demoacademico.model.Matricula;
+import jakarta.validation.Valid;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+@RestController
+@RequestMapping("/api/matriculas")
+public class MatriculaController {
+
+    private final MatriculaHandler handler;
+
+    public MatriculaController(MatriculaHandler handler) {
+        this.handler = handler;
+    }
+
+    @PostMapping
+    public ResponseEntity&lt;ApiResponse&lt;Matricula&gt;&gt; matricular(@Valid @RequestBody MatriculaCreateDTO in) {
+        // Puedes devolver MatriculaDTO si prefieres no exponer entity.
+        return ResponseBuilder.created("Matrícula creada", handler.crear(in));
+    }
+}</code></pre>
+
+    <div class="note">
+      <strong>Recomendación:</strong> Si quieres mantener 100% DTO (sin exponer entity),
+      crea un <code>MatriculaDTO</code> con: <code>id, estudianteId, grupoId, fechaRegistro</code>.
+    </div>
+
+    <hr />
+
+    <h3>5.7 Paso 7 — CRUD de Programa/Asignatura/Grupo</h3>
+    <p>
+      Implementa los tres módulos como en Estudiantes:
+      <strong>DTOs + Handler + Service + Repository + Controller</strong>.
+      En los Controllers, agrega paginación a:
+      <code>GET /api/programas</code> y <code>GET /api/grupos</code>.
+    </p>
+
+    <pre><code>// Ejemplo firma Controller paginado
+// GET /api/programas?page=0&amp;size=5&amp;sort=nombre,asc
+@GetMapping
+public ResponseEntity&lt;ApiResponse&lt;Page&lt;ProgramaDTO&gt;&gt;&gt; listar(@ParameterObject Pageable pageable) {
+    return ResponseBuilder.ok("OK", handler.listar(pageable));
+}</code></pre>
+  </section>
+
+  <hr />
+
+  <section id="reglas">
+    <h2>6) Reglas de negocio obligatorias</h2>
+    <ol>
+      <li><strong>Matrícula duplicada:</strong> no permitir matricular el mismo estudiante en el mismo grupo dos veces.</li>
+      <li><strong>Cupo:</strong> no permitir matrícula si <code>matriculados &gt;= cupoMax</code>.</li>
+      <li><strong>Existencia:</strong> si estudiante o grupo no existe → lanzar <code>NotFoundException</code>.</li>
+    </ol>
+
+    <div class="note">
+      <strong>Plus:</strong> Puedes agregar en Programa la regla <code>codigo</code> único usando
+      <code>existsByCodigo</code> y una <code>BusinessException</code>.
+    </div>
+  </section>
+
+  <hr />
+
+  <section id="seeder">
+    <h2>7) Seeder evolutivo (Programas/Asignaturas/Grupos)</h2>
+
+    <p>
+      Extiende tu seeder del Lab 02 para que cree Programas, Asignaturas y Grupos.
+      El objetivo es poder probar matrícula sin crear todo manualmente.
+    </p>
+
+    <pre><code>// src/main/java/co/edu/demoacademico/config/DataSeeder.java (ejemplo conceptual)
+// - si enabled=true y tablas están vacías, siembra
+// - crear N programas, por cada programa crear asignaturas, por cada asignatura crear grupos</code></pre>
+
+    <div class="note">
+      <strong>Tip:</strong> Crea primero Programas, luego Asignaturas (asociadas) y al final Grupos (asociados).
+      Mantén coherencia de relaciones.
+    </div>
+
+    <div class="warn" style="margin-top:10px;">
+      <strong>Importante:</strong> No es obligatorio sembrar matrículas. Las matrículas se prueban en Swagger.
+    </div>
+  </section>
+
+  <hr />
+
+  <section id="endpoints">
+    <h2>8) Endpoints mínimos y pruebas en Swagger</h2>
+
+    <h3>8.1 Abrir Swagger</h3>
+    <pre>http://localhost:8080/swagger-ui.html</pre>
+
+    <h3>8.2 Endpoints mínimos</h3>
+    <ul>
+      <li><code>POST /api/programas</code> | <code>GET /api/programas</code> (paginado)</li>
+      <li><code>POST /api/asignaturas</code> | <code>GET /api/asignaturas</code> (puede filtrar por programaId)</li>
+      <li><code>POST /api/grupos</code> | <code>GET /api/grupos</code> (paginado)</li>
+      <li><code>POST /api/matriculas</code> (flujo principal)</li>
+    </ul>
+
+    <h3>8.3 Guion mínimo de pruebas (obligatorio)</h3>
+    <ol>
+      <li>Crear un Programa</li>
+      <li>Crear una Asignatura asociada al Programa</li>
+      <li>Crear un Grupo con <code>cupoMax = 2</code></li>
+      <li>Crear 2 Estudiantes (o usar el seed)</li>
+      <li>Matricular Estudiante #1 en el Grupo → OK</li>
+      <li>Matricular Estudiante #2 en el Grupo → OK</li>
+      <li>Intentar matricular Estudiante #3 en el mismo Grupo → debe fallar por cupo (BusinessException)</li>
+      <li>Intentar matricular Estudiante #1 de nuevo en el mismo Grupo → debe fallar por duplicado (BusinessException)</li>
+    </ol>
+
+    <h3>8.4 Ejemplo body Matrícula</h3>
+    <pre><code>{
+  "estudianteId": 1,
+  "grupoId": 10
+}</code></pre>
+
+    <div class="note">
+      <strong>Validación:</strong> Asegúrate que los errores salgan como <code>ApiResponse</code> (success=false).
+    </div>
+  </section>
+
+  <hr />
+
+  <section id="entregable">
+    <h2>9) Entregable</h2>
+    <ul>
+      <li>Repositorio/zip del proyecto funcionando con Opción A.</li>
+      <li>Capturas o evidencia (texto) de Swagger con:
+        <ul>
+          <li>2 matrículas exitosas</li>
+          <li>1 fallo por cupo</li>
+          <li>1 fallo por duplicado</li>
+        </ul>
+      </li>
+      <li>README corto explicando:
+        <ul>
+          <li>Cómo ejecutar</li>
+          <li>URL Swagger</li>
+          <li>Qué reglas implementaste</li>
+        </ul>
+      </li>
+    </ul>
+  </section>
+
+  <hr />
+
+  <section id="checklist">
+    <h2>Checklist final</h2>
+    <ul>
+      <li>Se mantuvo Opción A (DTO + Handler + ApiResponse).</li>
+      <li>CRUD de Programa/Asignatura/Grupo funcional.</li>
+      <li>Matrícula implementada con reglas:
+        <ul>
+          <li>No duplicado</li>
+          <li>Cupo</li>
+          <li>NotFound para estudiante/grupo inexistente</li>
+        </ul>
+      </li>
+      <li>Paginación en mínimo 2 endpoints.</li>
+      <li>Seeder evolutivo configurado por <code>app.seed.*</code>.</li>
+      <li>Pruebas realizadas desde Swagger.</li>
+    </ul>
+  </section>
+
+  <hr />
+
+  <p class="small">
+    Ingeniería de Software III — Laboratorio práctico (Lab 03).<br/>
+    Evolución del sistema académico con Opción A (DTO + ApiResponse + Handler) y reglas de negocio en Matrícula.
+  </p>
+
+</main>
 
 </body>
 </html>
