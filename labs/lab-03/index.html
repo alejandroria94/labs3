@@ -38,25 +38,30 @@
 <main>
 
   <h1>Lab 03</h1>
-  <h2>Evolución del sistema académico (Opción A): Programas + Asignaturas + Grupos + Matrícula (reglas de negocio, paginación, seeder, Swagger)</h2>
+  <h2>Sistema Académico (Parte 1) + Refactor por módulos con Ports (Parte 2)</h2>
 
   <p>
-    Partiendo del proyecto <strong>demo-academico</strong> (Lab 02 implementado con <strong>Opción A</strong>),
-    vas a evolucionar el dominio para construir el primer flujo real de negocio:
-    <strong>crear Programas</strong>, <strong>crear Asignaturas</strong>, <strong>abrir Grupos</strong> y
-    <strong>matricular Estudiantes</strong> con reglas mínimas.
+    Este laboratorio continúa el proyecto <strong>demo-academico</strong> (Lab 02, Opción A).
+    Aquí vas a construir el flujo académico mínimo:
+    <strong>Programa → Asignatura → Grupo → Matrícula</strong>,
+    y luego vas a refactorizar la arquitectura por módulos usando <strong>interfaces públicas (Ports)</strong>.
   </p>
 
   <div class="note">
-    <strong>Punto de partida:</strong> ya existe el módulo <code>Estudiantes</code> con:
-    DTOs, <code>ApiResponse</code>, <code>ResponseBuilder</code>, <code>GlobalExceptionHandler</code>,
-    paginación y <code>Seeder</code> con Faker.
-    Verifica Swagger en <code>/swagger-ui.html</code>.
+    <strong>Punto de partida (ya existe del Lab 02):</strong>
+    <ul>
+      <li><code>Estudiante</code> + CRUD (Opción A)</li>
+      <li><code>ApiResponse</code>, <code>ResponseBuilder</code></li>
+      <li><code>GlobalExceptionHandler</code> (NotFound, Business, Validación, Genérico)</li>
+      <li>Swagger en <code>/swagger-ui.html</code></li>
+      <li>Seeder con Faker (para Estudiantes)</li>
+    </ul>
   </div>
 
   <div class="warn" style="margin-top:10px;">
-    <strong>Importante:</strong> Este laboratorio se desarrolla <strong>solo con Opción A</strong>.
-    Mantén el mismo estilo: <strong>DTO + Handler + ApiResponse</strong>. No mezcles con Opción B.
+    <strong>Regla del Lab 03:</strong> Seguimos con el estilo <strong>Opción A</strong> (DTO + Handler + ApiResponse).
+    En la Parte 2 aplicamos una regla arquitectónica: <strong>Matriculas NO puede inyectar repositorios de otros módulos</strong>;
+    debe usar Ports.
   </div>
 
   <hr />
@@ -64,147 +69,98 @@
   <div class="toc">
     <h3 style="margin-top:0;">Contenido</h3>
     <ul>
-      <li><a href="#resultados">1) Resultados esperados</a></li>
-      <li><a href="#modelo">2) Modelo de dominio mínimo (relaciones)</a></li>
-      <li><a href="#config">3) Configuración requerida (application.yml)</a></li>
-      <li><a href="#estructura">4) Estructura esperada (Opción A)</a></li>
-      <li><a href="#pasos">5) Paso a paso (con código base)</a></li>
-      <li><a href="#reglas">6) Reglas de negocio obligatorias</a></li>
-      <li><a href="#seeder">7) Seeder evolutivo (Programas/Asignaturas/Grupos)</a></li>
-      <li><a href="#endpoints">8) Endpoints mínimos y pruebas en Swagger</a></li>
-      <li><a href="#entregable">9) Entregable</a></li>
-      <li><a href="#checklist">Checklist final</a></li>
+      <li><a href="#config">0) Configuración previa</a></li>
+      <li><a href="#parte1">Parte 1 — Implementación funcional (guiada)</a></li>
+      <li><a href="#parte2">Parte 2 — Refactor por módulos + Ports (guiada)</a></li>
+      <li><a href="#pruebas">Pruebas en Swagger</a></li>
+      <li><a href="#entregable">Entregable</a></li>
+      <li><a href="#checklist">Checklist</a></li>
     </ul>
   </div>
 
   <hr />
 
-  <section id="resultados">
-    <h2>1) Resultados esperados</h2>
-    <ul>
-      <li>CRUD funcional de <strong>Programa</strong>, <strong>Asignatura</strong> y <strong>Grupo</strong>.</li>
-      <li>Flujo funcional de <strong>Matrícula</strong> (POST matricular) con reglas mínimas.</li>
-      <li>Paginación funcional en mínimo <strong>2 listados</strong> (ej: Programas y Grupos).</li>
-      <li>Errores controlados por <code>GlobalExceptionHandler</code> devolviendo <code>ApiResponse</code>.</li>
-      <li>Seeder extendido con Faker para Programas/Asignaturas/Grupos (opcional: estudiantes si ya existe).</li>
-      <li>Pruebas realizadas desde Swagger (<code>/swagger-ui.html</code>).</li>
-    </ul>
-  </section>
-
-  <hr />
-
-  <section id="modelo">
-    <h2>2) Modelo de dominio mínimo (relaciones)</h2>
-    <p>Vas a construir un dominio mínimo con estas entidades y relaciones:</p>
-
-    <ul>
-      <li><strong>Programa</strong> (1) — (N) <strong>Asignatura</strong></li>
-      <li><strong>Asignatura</strong> (1) — (N) <strong>Grupo</strong></li>
-      <li><strong>Estudiante</strong> (N) — (N) <strong>Grupo</strong> mediante <strong>Matricula</strong></li>
-    </ul>
-
-    <div class="note">
-      <strong>Regla práctica:</strong> En JPA se implementa el N..N mediante la entidad intermedia <code>Matricula</code>
-      (no usar <code>@ManyToMany</code> directo en este laboratorio).
-    </div>
-  </section>
-
-  <hr />
-
+  <!-- =========================================================
+       0) CONFIG
+  ========================================================== -->
   <section id="config">
-    <h2>3) Configuración requerida (application.yml)</h2>
-    <p>Archivo: <code>src/main/resources/application.yml</code>. Extiende el seeder para múltiples entidades.</p>
+    <h2>0) Configuración previa</h2>
 
+    <h3>0.1 application.yml (semillas adicionales)</h3>
+    <p>Archivo: <code>src/main/resources/application.yml</code></p>
     <pre><code>app:
   seed:
     enabled: true
-    cantidad-estudiantes: 200
+    cantidad-estudiantes: 50
     cantidad-programas: 3
-    cantidad-asignaturas: 12
-    cantidad-grupos: 30</code></pre>
+    cantidad-asignaturas: 10
+    cantidad-grupos: 20</code></pre>
 
     <div class="note">
-      <strong>Tip:</strong> Si no quieres sembrar estudiantes (porque ya los tienes), puedes dejar
-      <code>cantidad-estudiantes</code> en 0.
+      Si tu Lab 02 ya siembra 500 estudiantes, puedes bajar <code>cantidad-estudiantes</code> o ponerlo en 0.
+      En este Lab 03 NO es obligatorio sembrar matrículas.
     </div>
   </section>
 
   <hr />
 
-  <section id="estructura">
-    <h2>4) Estructura esperada (Opción A)</h2>
+  <!-- =========================================================
+       PARTE 1
+  ========================================================== -->
+  <section id="parte1">
+    <h2>Parte 1 — Implementación funcional (totalmente guiada)</h2>
+
     <p>
-      Mantén el mismo estilo que el Lab 02: DTOs para entrada/salida, Handlers para mapping, Services con reglas,
-      y Controllers devolviendo <code>ApiResponse</code>.
+      En esta parte vas a crear 4 entidades nuevas y sus capas:
+      <strong>Programa</strong>, <strong>Asignatura</strong>, <strong>Grupo</strong>, <strong>Matricula</strong>.
+      Todo en estilo Opción A: DTOs + Handler + Service + Controller + ApiResponse.
     </p>
 
-    <pre>co.edu.demoacademico
-├── api
-│   ├── ApiResponse.java
-│   └── ResponseBuilder.java
-├── controller
-│   ├── EstudianteController.java
-│   ├── ProgramaController.java
-│   ├── AsignaturaController.java
-│   ├── GrupoController.java
-│   ├── MatriculaController.java
-│   └── GlobalExceptionHandler.java
-├── dto
-│   ├── programa (ProgramaCreateDTO, ProgramaUpdateDTO, ProgramaDTO)
-│   ├── asignatura (AsignaturaCreateDTO, AsignaturaUpdateDTO, AsignaturaDTO)
-│   ├── grupo (GrupoCreateDTO, GrupoUpdateDTO, GrupoDTO)
-│   └── matricula (MatriculaCreateDTO, MatriculaDTO)
-├── exception
-│   ├── BusinessException.java
-│   └── NotFoundException.java
-├── handler
-│   ├── ProgramaHandler.java
-│   ├── AsignaturaHandler.java
-│   ├── GrupoHandler.java
-│   └── MatriculaHandler.java
-├── model
-│   ├── Estudiante.java
-│   ├── Programa.java
-│   ├── Asignatura.java
-│   ├── Grupo.java
-│   └── Matricula.java
-├── repository
-│   ├── EstudianteRepository.java
-│   ├── ProgramaRepository.java
-│   ├── AsignaturaRepository.java
-│   ├── GrupoRepository.java
-│   └── MatriculaRepository.java
-└── service
-    ├── ProgramaService.java / Impl
-    ├── AsignaturaService.java / Impl
-    ├── GrupoService.java / Impl
-    └── MatriculaService.java / Impl</pre>
-  </section>
+    <hr />
 
-  <hr />
+    <h3>1.1 Modelo del dominio (lo que vas a construir)</h3>
+    <pre>Programa (1) ─── (N) Asignatura (1) ─── (N) Grupo
+Estudiante (N) ─── (N) Grupo  (usando Matricula como entidad intermedia)</pre>
 
-  <section id="pasos">
-    <h2>5) Paso a paso (con código base)</h2>
+    <div class="warn">
+      <strong>Reglas obligatorias en Matrícula:</strong>
+      <ul>
+        <li>No duplicado: (estudiante_id + grupo_id) no se repite</li>
+        <li>No superar cupo del grupo</li>
+        <li>Si no existe estudiante o grupo → NotFoundException</li>
+      </ul>
+    </div>
 
-    <h3>5.1 Paso 1 — Crear entidades (model)</h3>
+    <hr />
 
-    <h4>Archivo: <code>src/main/java/co/edu/demoacademico/model/Programa.java</code></h4>
+    <!-- ===============================
+         PASO A1: ENTIDADES
+    ================================ -->
+    <h3>1.2 Paso A1 — Crear entidades (JPA)</h3>
+    <p>Crea los archivos en <code>src/main/java/co/edu/demoacademico/model</code> (en Parte 2 los moverás por módulos).</p>
+
+    <h4>Archivo: <code>Programa.java</code></h4>
     <pre><code>package co.edu.demoacademico.model;
 
 import jakarta.persistence.*;
 
 @Entity
+@Table(name = "programa", uniqueConstraints = {
+        @UniqueConstraint(name = "uk_programa_codigo", columnNames = {"codigo"})
+})
 public class Programa {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, unique = true)
+    @Column(nullable = false, length = 20)
     private String codigo;
 
-    @Column(nullable = false)
+    @Column(nullable = false, length = 120)
     private String nombre;
+
+    public Programa() {}
 
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
@@ -216,29 +172,34 @@ public class Programa {
     public void setNombre(String nombre) { this.nombre = nombre; }
 }</code></pre>
 
-    <h4>Archivo: <code>src/main/java/co/edu/demoacademico/model/Asignatura.java</code></h4>
+    <h4>Archivo: <code>Asignatura.java</code></h4>
     <pre><code>package co.edu.demoacademico.model;
 
 import jakarta.persistence.*;
 
 @Entity
+@Table(name = "asignatura")
 public class Asignatura {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false)
+    @Column(nullable = false, length = 20)
     private String codigo;
 
-    @Column(nullable = false)
+    @Column(nullable = false, length = 120)
     private String nombre;
 
     @Column(nullable = false)
     private Integer creditos;
 
     @ManyToOne(optional = false, fetch = FetchType.LAZY)
+    @JoinColumn(name = "programa_id", nullable = false,
+            foreignKey = @ForeignKey(name = "fk_asignatura_programa"))
     private Programa programa;
+
+    public Asignatura() {}
 
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
@@ -256,36 +217,33 @@ public class Asignatura {
     public void setPrograma(Programa programa) { this.programa = programa; }
 }</code></pre>
 
-    <h4>Archivo: <code>src/main/java/co/edu/demoacademico/model/Grupo.java</code></h4>
+    <h4>Archivo: <code>Grupo.java</code></h4>
     <pre><code>package co.edu.demoacademico.model;
 
 import jakarta.persistence.*;
 
 @Entity
+@Table(name = "grupo", uniqueConstraints = {
+        @UniqueConstraint(name = "uk_grupo_codigo", columnNames = {"codigo_grupo"})
+})
 public class Grupo {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    // Ej: "G1-2026-1" o "A1"
-    @Column(nullable = false)
+    @Column(name="codigo_grupo", nullable = false, length = 30)
     private String codigoGrupo;
 
     @Column(nullable = false)
     private Integer cupoMax;
 
-    // PLUS (recomendado): horario mínimo para evolucionar en Lab 04
-    @Column(nullable = true)
-    private String dia; // LUNES, MARTES, ...
-
-    @Column(nullable = true)
-    private String horaInicio; // "08:00"
-    @Column(nullable = true)
-    private String horaFin;    // "10:00"
-
     @ManyToOne(optional = false, fetch = FetchType.LAZY)
+    @JoinColumn(name = "asignatura_id", nullable = false,
+            foreignKey = @ForeignKey(name = "fk_grupo_asignatura"))
     private Asignatura asignatura;
+
+    public Grupo() {}
 
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
@@ -296,45 +254,41 @@ public class Grupo {
     public Integer getCupoMax() { return cupoMax; }
     public void setCupoMax(Integer cupoMax) { this.cupoMax = cupoMax; }
 
-    public String getDia() { return dia; }
-    public void setDia(String dia) { this.dia = dia; }
-
-    public String getHoraInicio() { return horaInicio; }
-    public void setHoraInicio(String horaInicio) { this.horaInicio = horaInicio; }
-
-    public String getHoraFin() { return horaFin; }
-    public void setHoraFin(String horaFin) { this.horaFin = horaFin; }
-
     public Asignatura getAsignatura() { return asignatura; }
     public void setAsignatura(Asignatura asignatura) { this.asignatura = asignatura; }
 }</code></pre>
 
-    <h4>Archivo: <code>src/main/java/co/edu/demoacademico/model/Matricula.java</code></h4>
+    <h4>Archivo: <code>Matricula.java</code></h4>
     <pre><code>package co.edu.demoacademico.model;
 
 import jakarta.persistence.*;
 import java.time.Instant;
 
 @Entity
-@Table(
-  uniqueConstraints = {
-    @UniqueConstraint(name = "uk_matricula_estudiante_grupo", columnNames = {"estudiante_id", "grupo_id"})
-  }
-)
+@Table(name = "matricula", uniqueConstraints = {
+        @UniqueConstraint(name = "uk_matricula_estudiante_grupo", columnNames = {"estudiante_id", "grupo_id"})
+})
 public class Matricula {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    // Estudiante ya existe del Lab 02
     @ManyToOne(optional = false, fetch = FetchType.LAZY)
+    @JoinColumn(name="estudiante_id", nullable = false,
+            foreignKey = @ForeignKey(name = "fk_matricula_estudiante"))
     private Estudiante estudiante;
 
     @ManyToOne(optional = false, fetch = FetchType.LAZY)
+    @JoinColumn(name="grupo_id", nullable = false,
+            foreignKey = @ForeignKey(name = "fk_matricula_grupo"))
     private Grupo grupo;
 
-    @Column(nullable = false)
+    @Column(name = "fecha_registro", nullable = false)
     private Instant fechaRegistro = Instant.now();
+
+    public Matricula() {}
 
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
@@ -349,18 +303,27 @@ public class Matricula {
     public void setFechaRegistro(Instant fechaRegistro) { this.fechaRegistro = fechaRegistro; }
 }</code></pre>
 
+    <div class="note">
+      Si al iniciar te aparece error por "table grupo" (palabra reservada en alguna BD), puedes renombrar la tabla:
+      <code>@Table(name="grupo_academico")</code> y ajustar los repositorios.
+      En H2 normalmente no tendrás problema.
+    </div>
+
     <hr />
 
-    <h3>5.2 Paso 2 — Crear DTOs por módulo</h3>
+    <!-- ===============================
+         PASO A2: DTOs
+    ================================ -->
+    <h3>1.3 Paso A2 — Crear DTOs (entrada/salida)</h3>
+    <p>Crea paquete <code>co.edu.demoacademico.dto</code> (temporal; en Parte 2 se moverá por módulos).</p>
 
-    <h4>Programa DTOs (ejemplo)</h4>
-    <pre><code>// src/main/java/co/edu/demoacademico/dto/programa/ProgramaCreateDTO.java
-package co.edu.demoacademico.dto.programa;
+    <h4>Programa DTOs</h4>
+    <pre><code>// ProgramaCreateDTO.java
+package co.edu.demoacademico.dto;
 
 import jakarta.validation.constraints.NotBlank;
 
 public class ProgramaCreateDTO {
-
     @NotBlank(message = "El código es obligatorio")
     private String codigo;
 
@@ -372,10 +335,23 @@ public class ProgramaCreateDTO {
 
     public String getNombre() { return nombre; }
     public void setNombre(String nombre) { this.nombre = nombre; }
-}</code></pre>
+}
 
-    <pre><code>// src/main/java/co/edu/demoacademico/dto/programa/ProgramaDTO.java
-package co.edu.demoacademico.dto.programa;
+// ProgramaUpdateDTO.java
+package co.edu.demoacademico.dto;
+
+import jakarta.validation.constraints.NotBlank;
+
+public class ProgramaUpdateDTO {
+    @NotBlank(message = "El nombre es obligatorio")
+    private String nombre;
+
+    public String getNombre() { return nombre; }
+    public void setNombre(String nombre) { this.nombre = nombre; }
+}
+
+// ProgramaDTO.java
+package co.edu.demoacademico.dto;
 
 public class ProgramaDTO {
     private Long id;
@@ -392,16 +368,15 @@ public class ProgramaDTO {
     public void setNombre(String nombre) { this.nombre = nombre; }
 }</code></pre>
 
-    <h4>Asignatura Create DTO (ejemplo con relación por id)</h4>
-    <pre><code>// src/main/java/co/edu/demoacademico/dto/asignatura/AsignaturaCreateDTO.java
-package co.edu.demoacademico.dto.asignatura;
+    <h4>Asignatura DTOs</h4>
+    <pre><code>// AsignaturaCreateDTO.java
+package co.edu.demoacademico.dto;
 
-import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Min;
 
 public class AsignaturaCreateDTO {
-
     @NotBlank(message = "El código es obligatorio")
     private String codigo;
 
@@ -409,7 +384,7 @@ public class AsignaturaCreateDTO {
     private String nombre;
 
     @NotNull(message = "Los créditos son obligatorios")
-    @Min(value = 1, message = "Créditos mínimo: 1")
+    @Min(value = 1, message = "Créditos mínimo 1")
     private Integer creditos;
 
     @NotNull(message = "programaId es obligatorio")
@@ -426,28 +401,53 @@ public class AsignaturaCreateDTO {
 
     public Long getProgramaId() { return programaId; }
     public void setProgramaId(Long programaId) { this.programaId = programaId; }
+}
+
+// AsignaturaDTO.java
+package co.edu.demoacademico.dto;
+
+public class AsignaturaDTO {
+    private Long id;
+    private String codigo;
+    private String nombre;
+    private Integer creditos;
+    private Long programaId;
+    private String programaNombre;
+
+    public Long getId() { return id; }
+    public void setId(Long id) { this.id = id; }
+
+    public String getCodigo() { return codigo; }
+    public void setCodigo(String codigo) { this.codigo = codigo; }
+
+    public String getNombre() { return nombre; }
+    public void setNombre(String nombre) { this.nombre = nombre; }
+
+    public Integer getCreditos() { return creditos; }
+    public void setCreditos(Integer creditos) { this.creditos = creditos; }
+
+    public Long getProgramaId() { return programaId; }
+    public void setProgramaId(Long programaId) { this.programaId = programaId; }
+
+    public String getProgramaNombre() { return programaNombre; }
+    public void setProgramaNombre(String programaNombre) { this.programaNombre = programaNombre; }
 }</code></pre>
 
-    <h4>Grupo Create DTO (ejemplo con cupo + asignaturaId)</h4>
-    <pre><code>// src/main/java/co/edu/demoacademico/dto/grupo/GrupoCreateDTO.java
-package co.edu.demoacademico.dto.grupo;
+    <h4>Grupo DTOs</h4>
+    <pre><code>// GrupoCreateDTO.java
+package co.edu.demoacademico.dto;
 
-import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Min;
 
 public class GrupoCreateDTO {
-
-    @NotBlank(message = "El código del grupo es obligatorio")
+    @NotBlank(message = "codigoGrupo es obligatorio")
     private String codigoGrupo;
 
     @NotNull(message = "cupoMax es obligatorio")
-    @Min(value = 1, message = "cupoMax mínimo: 1")
+    @Min(value = 1, message = "cupoMax mínimo 1")
     private Integer cupoMax;
-
-    private String dia; // opcional
-    private String horaInicio; // opcional
-    private String horaFin; // opcional
 
     @NotNull(message = "asignaturaId es obligatorio")
     private Long asignaturaId;
@@ -458,27 +458,43 @@ public class GrupoCreateDTO {
     public Integer getCupoMax() { return cupoMax; }
     public void setCupoMax(Integer cupoMax) { this.cupoMax = cupoMax; }
 
-    public String getDia() { return dia; }
-    public void setDia(String dia) { this.dia = dia; }
+    public Long getAsignaturaId() { return asignaturaId; }
+    public void setAsignaturaId(Long asignaturaId) { this.asignaturaId = asignaturaId; }
+}
 
-    public String getHoraInicio() { return horaInicio; }
-    public void setHoraInicio(String horaInicio) { this.horaInicio = horaInicio; }
+// GrupoDTO.java
+package co.edu.demoacademico.dto;
 
-    public String getHoraFin() { return horaFin; }
-    public void setHoraFin(String horaFin) { this.horaFin = horaFin; }
+public class GrupoDTO {
+    private Long id;
+    private String codigoGrupo;
+    private Integer cupoMax;
+    private Long asignaturaId;
+    private String asignaturaNombre;
+
+    public Long getId() { return id; }
+    public void setId(Long id) { this.id = id; }
+
+    public String getCodigoGrupo() { return codigoGrupo; }
+    public void setCodigoGrupo(String codigoGrupo) { this.codigoGrupo = codigoGrupo; }
+
+    public Integer getCupoMax() { return cupoMax; }
+    public void setCupoMax(Integer cupoMax) { this.cupoMax = cupoMax; }
 
     public Long getAsignaturaId() { return asignaturaId; }
     public void setAsignaturaId(Long asignaturaId) { this.asignaturaId = asignaturaId; }
+
+    public String getAsignaturaNombre() { return asignaturaNombre; }
+    public void setAsignaturaNombre(String asignaturaNombre) { this.asignaturaNombre = asignaturaNombre; }
 }</code></pre>
 
-    <h4>Matrícula Create DTO (flujo principal)</h4>
-    <pre><code>// src/main/java/co/edu/demoacademico/dto/matricula/MatriculaCreateDTO.java
-package co.edu.demoacademico.dto.matricula;
+    <h4>Matricula DTOs</h4>
+    <pre><code>// MatriculaCreateDTO.java
+package co.edu.demoacademico.dto;
 
 import jakarta.validation.constraints.NotNull;
 
 public class MatriculaCreateDTO {
-
     @NotNull(message = "estudianteId es obligatorio")
     private Long estudianteId;
 
@@ -490,13 +506,49 @@ public class MatriculaCreateDTO {
 
     public Long getGrupoId() { return grupoId; }
     public void setGrupoId(Long grupoId) { this.grupoId = grupoId; }
+}
+
+// MatriculaDTO.java
+package co.edu.demoacademico.dto;
+
+import java.time.Instant;
+
+public class MatriculaDTO {
+    private Long id;
+    private Long estudianteId;
+    private String estudianteNombre;
+    private Long grupoId;
+    private String codigoGrupo;
+    private Instant fechaRegistro;
+
+    public Long getId() { return id; }
+    public void setId(Long id) { this.id = id; }
+
+    public Long getEstudianteId() { return estudianteId; }
+    public void setEstudianteId(Long estudianteId) { this.estudianteId = estudianteId; }
+
+    public String getEstudianteNombre() { return estudianteNombre; }
+    public void setEstudianteNombre(String estudianteNombre) { this.estudianteNombre = estudianteNombre; }
+
+    public Long getGrupoId() { return grupoId; }
+    public void setGrupoId(Long grupoId) { this.grupoId = grupoId; }
+
+    public String getCodigoGrupo() { return codigoGrupo; }
+    public void setCodigoGrupo(String codigoGrupo) { this.codigoGrupo = codigoGrupo; }
+
+    public Instant getFechaRegistro() { return fechaRegistro; }
+    public void setFechaRegistro(Instant fechaRegistro) { this.fechaRegistro = fechaRegistro; }
 }</code></pre>
 
     <hr />
 
-    <h3>5.3 Paso 3 — Repositories</h3>
+    <!-- ===============================
+         PASO A3: REPOS
+    ================================ -->
+    <h3>1.4 Paso A3 — Crear Repositories</h3>
+    <p>Crea paquete <code>co.edu.demoacademico.repository</code>.</p>
 
-    <pre><code>// src/main/java/co/edu/demoacademico/repository/ProgramaRepository.java
+    <pre><code>// ProgramaRepository.java
 package co.edu.demoacademico.repository;
 
 import co.edu.demoacademico.model.Programa;
@@ -504,59 +556,251 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface ProgramaRepository extends JpaRepository&lt;Programa, Long&gt; {
     boolean existsByCodigo(String codigo);
-}</code></pre>
+}
 
-    <pre><code>// src/main/java/co/edu/demoacademico/repository/AsignaturaRepository.java
+// AsignaturaRepository.java
 package co.edu.demoacademico.repository;
 
 import co.edu.demoacademico.model.Asignatura;
 import org.springframework.data.jpa.repository.JpaRepository;
 
-public interface AsignaturaRepository extends JpaRepository&lt;Asignatura, Long&gt; {
-}</code></pre>
+public interface AsignaturaRepository extends JpaRepository&lt;Asignatura, Long&gt; { }
 
-    <pre><code>// src/main/java/co/edu/demoacademico/repository/GrupoRepository.java
+// GrupoRepository.java
 package co.edu.demoacademico.repository;
 
 import co.edu.demoacademico.model.Grupo;
 import org.springframework.data.jpa.repository.JpaRepository;
 
-public interface GrupoRepository extends JpaRepository&lt;Grupo, Long&gt; {
-}</code></pre>
+public interface GrupoRepository extends JpaRepository&lt;Grupo, Long&gt; { }
 
-    <pre><code>// src/main/java/co/edu/demoacademico/repository/MatriculaRepository.java
+// MatriculaRepository.java
 package co.edu.demoacademico.repository;
 
 import co.edu.demoacademico.model.Matricula;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface MatriculaRepository extends JpaRepository&lt;Matricula, Long&gt; {
-
     boolean existsByEstudianteIdAndGrupoId(Long estudianteId, Long grupoId);
-
     long countByGrupoId(Long grupoId);
 }</code></pre>
 
     <hr />
 
-    <h3>5.4 Paso 4 — Services (reglas en matrícula)</h3>
+    <!-- ===============================
+         PASO A4: SERVICES
+    ================================ -->
+    <h3>1.5 Paso A4 — Crear Services (interfaces + implementación)</h3>
+    <p>
+      Crea paquete <code>co.edu.demoacademico.service</code>.
+      Reutiliza tus excepciones del Lab 02: <code>BusinessException</code>, <code>NotFoundException</code>.
+    </p>
 
-    <h4>MatriculaService (interfaz)</h4>
-    <pre><code>// src/main/java/co/edu/demoacademico/service/MatriculaService.java
+    <h4>ProgramaService</h4>
+    <pre><code>// ProgramaService.java
+package co.edu.demoacademico.service;
+
+import co.edu.demoacademico.model.Programa;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+
+public interface ProgramaService {
+    Programa crear(Programa p);
+    Programa obtenerPorId(Long id);
+    Page&lt;Programa&gt; listar(Pageable pageable);
+    Programa actualizar(Long id, Programa p);
+    void eliminar(Long id);
+}
+
+// ProgramaServiceImpl.java
+package co.edu.demoacademico.service;
+
+import co.edu.demoacademico.exception.BusinessException;
+import co.edu.demoacademico.exception.NotFoundException;
+import co.edu.demoacademico.model.Programa;
+import co.edu.demoacademico.repository.ProgramaRepository;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+@Service
+@Transactional
+public class ProgramaServiceImpl implements ProgramaService {
+
+    private final ProgramaRepository repo;
+
+    public ProgramaServiceImpl(ProgramaRepository repo) {
+        this.repo = repo;
+    }
+
+    @Override
+    public Programa crear(Programa p) {
+        if (repo.existsByCodigo(p.getCodigo())) {
+            throw new BusinessException("Ya existe un programa con el código: " + p.getCodigo());
+        }
+        return repo.save(p);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Programa obtenerPorId(Long id) {
+        return repo.findById(id)
+                .orElseThrow(() -&gt; new NotFoundException("Programa no encontrado: " + id));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page&lt;Programa&gt; listar(Pageable pageable) {
+        return repo.findAll(pageable);
+    }
+
+    @Override
+    public Programa actualizar(Long id, Programa p) {
+        Programa actual = obtenerPorId(id);
+        actual.setNombre(p.getNombre());
+        return repo.save(actual);
+    }
+
+    @Override
+    public void eliminar(Long id) {
+        repo.delete(obtenerPorId(id));
+    }
+}</code></pre>
+
+    <h4>AsignaturaService</h4>
+    <pre><code>// AsignaturaService.java
+package co.edu.demoacademico.service;
+
+import co.edu.demoacademico.model.Asignatura;
+import java.util.List;
+
+public interface AsignaturaService {
+    Asignatura crear(Asignatura a);
+    Asignatura obtenerPorId(Long id);
+    List&lt;Asignatura&gt; listar();
+    void eliminar(Long id);
+}
+
+// AsignaturaServiceImpl.java
+package co.edu.demoacademico.service;
+
+import co.edu.demoacademico.exception.NotFoundException;
+import co.edu.demoacademico.model.Asignatura;
+import co.edu.demoacademico.repository.AsignaturaRepository;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
+
+@Service
+@Transactional
+public class AsignaturaServiceImpl implements AsignaturaService {
+
+    private final AsignaturaRepository repo;
+
+    public AsignaturaServiceImpl(AsignaturaRepository repo) {
+        this.repo = repo;
+    }
+
+    @Override
+    public Asignatura crear(Asignatura a) {
+        return repo.save(a);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Asignatura obtenerPorId(Long id) {
+        return repo.findById(id)
+                .orElseThrow(() -&gt; new NotFoundException("Asignatura no encontrada: " + id));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List&lt;Asignatura&gt; listar() {
+        return repo.findAll();
+    }
+
+    @Override
+    public void eliminar(Long id) {
+        repo.delete(obtenerPorId(id));
+    }
+}</code></pre>
+
+    <h4>GrupoService</h4>
+    <pre><code>// GrupoService.java
+package co.edu.demoacademico.service;
+
+import co.edu.demoacademico.model.Grupo;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+
+public interface GrupoService {
+    Grupo crear(Grupo g);
+    Grupo obtenerPorId(Long id);
+    Page&lt;Grupo&gt; listar(Pageable pageable);
+    void eliminar(Long id);
+}
+
+// GrupoServiceImpl.java
+package co.edu.demoacademico.service;
+
+import co.edu.demoacademico.exception.NotFoundException;
+import co.edu.demoacademico.model.Grupo;
+import co.edu.demoacademico.repository.GrupoRepository;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+@Service
+@Transactional
+public class GrupoServiceImpl implements GrupoService {
+
+    private final GrupoRepository repo;
+
+    public GrupoServiceImpl(GrupoRepository repo) {
+        this.repo = repo;
+    }
+
+    @Override
+    public Grupo crear(Grupo g) {
+        return repo.save(g);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Grupo obtenerPorId(Long id) {
+        return repo.findById(id)
+                .orElseThrow(() -&gt; new NotFoundException("Grupo no encontrado: " + id));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page&lt;Grupo&gt; listar(Pageable pageable) {
+        return repo.findAll(pageable);
+    }
+
+    @Override
+    public void eliminar(Long id) {
+        repo.delete(obtenerPorId(id));
+    }
+}</code></pre>
+
+    <h4>MatriculaService (aquí van las reglas)</h4>
+    <pre><code>// MatriculaService.java
 package co.edu.demoacademico.service;
 
 import co.edu.demoacademico.model.Matricula;
 
 public interface MatriculaService {
     Matricula matricular(Long estudianteId, Long grupoId);
-}</code></pre>
+}
 
-    <h4>MatriculaServiceImpl (implementación con reglas)</h4>
-    <pre><code>// src/main/java/co/edu/demoacademico/service/MatriculaServiceImpl.java
+// MatriculaServiceImpl.java
 package co.edu.demoacademico.service;
 
 import co.edu.demoacademico.exception.BusinessException;
-import co.edu.demoacademico.exception.NotFoundException;
 import co.edu.demoacademico.model.Estudiante;
 import co.edu.demoacademico.model.Grupo;
 import co.edu.demoacademico.model.Matricula;
@@ -574,11 +818,9 @@ public class MatriculaServiceImpl implements MatriculaService {
     private final GrupoRepository grupoRepo;
     private final MatriculaRepository matriculaRepo;
 
-    public MatriculaServiceImpl(
-            EstudianteRepository estudianteRepo,
-            GrupoRepository grupoRepo,
-            MatriculaRepository matriculaRepo
-    ) {
+    public MatriculaServiceImpl(EstudianteRepository estudianteRepo,
+                                GrupoRepository grupoRepo,
+                                MatriculaRepository matriculaRepo) {
         this.estudianteRepo = estudianteRepo;
         this.grupoRepo = grupoRepo;
         this.matriculaRepo = matriculaRepo;
@@ -587,23 +829,25 @@ public class MatriculaServiceImpl implements MatriculaService {
     @Override
     public Matricula matricular(Long estudianteId, Long grupoId) {
 
+        // 1) existencia (usa el NotFound del Lab 02 en los services/handlers en la Parte 2)
         Estudiante estudiante = estudianteRepo.findById(estudianteId)
-                .orElseThrow(() -&gt; new NotFoundException("Estudiante no encontrado: " + estudianteId));
+                .orElseThrow(() -&gt; new co.edu.demoacademico.exception.NotFoundException("Estudiante no encontrado: " + estudianteId));
 
         Grupo grupo = grupoRepo.findById(grupoId)
-                .orElseThrow(() -&gt; new NotFoundException("Grupo no encontrado: " + grupoId));
+                .orElseThrow(() -&gt; new co.edu.demoacademico.exception.NotFoundException("Grupo no encontrado: " + grupoId));
 
-        // Regla 1: no duplicado
+        // 2) no duplicado
         if (matriculaRepo.existsByEstudianteIdAndGrupoId(estudianteId, grupoId)) {
             throw new BusinessException("El estudiante ya está matriculado en ese grupo");
         }
 
-        // Regla 2: cupo
+        // 3) cupo
         long matriculados = matriculaRepo.countByGrupoId(grupoId);
         if (matriculados &gt;= grupo.getCupoMax()) {
             throw new BusinessException("El grupo no tiene cupo disponible");
         }
 
+        // 4) guardar
         Matricula m = new Matricula();
         m.setEstudiante(estudiante);
         m.setGrupo(grupo);
@@ -612,17 +856,189 @@ public class MatriculaServiceImpl implements MatriculaService {
 }</code></pre>
 
     <div class="note">
-      <strong>Nota:</strong> En este Lab 03 no implementamos choque de horario. Eso puede ser un <strong>plus</strong> o el Lab 04.
+      En la Parte 2 vamos a reemplazar el uso directo de repositorios ajenos en Matrícula por Ports.
+      Por ahora, en Parte 1, se acepta para tener la funcionalidad lista.
     </div>
 
     <hr />
 
-    <h3>5.5 Paso 5 — Handlers (DTO ↔ Entity)</h3>
+    <!-- ===============================
+         PASO A5: HANDLERS
+    ================================ -->
+    <h3>1.6 Paso A5 — Crear Handlers (DTO ↔ Entity)</h3>
+    <p>Crea paquete <code>co.edu.demoacademico.handler</code>.</p>
 
-    <pre><code>// src/main/java/co/edu/demoacademico/handler/MatriculaHandler.java
+    <pre><code>// ProgramaHandler.java
 package co.edu.demoacademico.handler;
 
-import co.edu.demoacademico.dto.matricula.MatriculaCreateDTO;
+import co.edu.demoacademico.dto.ProgramaCreateDTO;
+import co.edu.demoacademico.dto.ProgramaDTO;
+import co.edu.demoacademico.dto.ProgramaUpdateDTO;
+import co.edu.demoacademico.model.Programa;
+import co.edu.demoacademico.service.ProgramaService;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.stereotype.Component;
+
+@Component
+public class ProgramaHandler {
+
+    private final ProgramaService service;
+
+    public ProgramaHandler(ProgramaService service) {
+        this.service = service;
+    }
+
+    public ProgramaDTO crear(ProgramaCreateDTO in) {
+        Programa p = new Programa();
+        p.setCodigo(in.getCodigo());
+        p.setNombre(in.getNombre());
+        return toDto(service.crear(p));
+    }
+
+    public ProgramaDTO obtener(Long id) {
+        return toDto(service.obtenerPorId(id));
+    }
+
+    public Page&lt;ProgramaDTO&gt; listar(Pageable pageable) {
+        return service.listar(pageable).map(this::toDto);
+    }
+
+    public ProgramaDTO actualizar(Long id, ProgramaUpdateDTO in) {
+        Programa p = new Programa();
+        p.setNombre(in.getNombre());
+        return toDto(service.actualizar(id, p));
+    }
+
+    public void eliminar(Long id) {
+        service.eliminar(id);
+    }
+
+    private ProgramaDTO toDto(Programa p) {
+        ProgramaDTO dto = new ProgramaDTO();
+        dto.setId(p.getId());
+        dto.setCodigo(p.getCodigo());
+        dto.setNombre(p.getNombre());
+        return dto;
+    }
+}</code></pre>
+
+    <pre><code>// AsignaturaHandler.java
+package co.edu.demoacademico.handler;
+
+import co.edu.demoacademico.dto.AsignaturaCreateDTO;
+import co.edu.demoacademico.dto.AsignaturaDTO;
+import co.edu.demoacademico.model.Asignatura;
+import co.edu.demoacademico.model.Programa;
+import co.edu.demoacademico.service.AsignaturaService;
+import co.edu.demoacademico.service.ProgramaService;
+import org.springframework.stereotype.Component;
+
+import java.util.List;
+import java.util.stream.Collectors;
+
+@Component
+public class AsignaturaHandler {
+
+    private final AsignaturaService asignaturaService;
+    private final ProgramaService programaService;
+
+    public AsignaturaHandler(AsignaturaService asignaturaService, ProgramaService programaService) {
+        this.asignaturaService = asignaturaService;
+        this.programaService = programaService;
+    }
+
+    public AsignaturaDTO crear(AsignaturaCreateDTO in) {
+        Programa programa = programaService.obtenerPorId(in.getProgramaId());
+
+        Asignatura a = new Asignatura();
+        a.setCodigo(in.getCodigo());
+        a.setNombre(in.getNombre());
+        a.setCreditos(in.getCreditos());
+        a.setPrograma(programa);
+
+        return toDto(asignaturaService.crear(a));
+    }
+
+    public List&lt;AsignaturaDTO&gt; listar() {
+        return asignaturaService.listar().stream().map(this::toDto).collect(Collectors.toList());
+    }
+
+    public void eliminar(Long id) {
+        asignaturaService.eliminar(id);
+    }
+
+    private AsignaturaDTO toDto(Asignatura a) {
+        AsignaturaDTO dto = new AsignaturaDTO();
+        dto.setId(a.getId());
+        dto.setCodigo(a.getCodigo());
+        dto.setNombre(a.getNombre());
+        dto.setCreditos(a.getCreditos());
+        dto.setProgramaId(a.getPrograma().getId());
+        dto.setProgramaNombre(a.getPrograma().getNombre());
+        return dto;
+    }
+}</code></pre>
+
+    <pre><code>// GrupoHandler.java
+package co.edu.demoacademico.handler;
+
+import co.edu.demoacademico.dto.GrupoCreateDTO;
+import co.edu.demoacademico.dto.GrupoDTO;
+import co.edu.demoacademico.model.Asignatura;
+import co.edu.demoacademico.model.Grupo;
+import co.edu.demoacademico.service.AsignaturaService;
+import co.edu.demoacademico.service.GrupoService;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.stereotype.Component;
+
+@Component
+public class GrupoHandler {
+
+    private final GrupoService grupoService;
+    private final AsignaturaService asignaturaService;
+
+    public GrupoHandler(GrupoService grupoService, AsignaturaService asignaturaService) {
+        this.grupoService = grupoService;
+        this.asignaturaService = asignaturaService;
+    }
+
+    public GrupoDTO crear(GrupoCreateDTO in) {
+        Asignatura a = asignaturaService.obtenerPorId(in.getAsignaturaId());
+
+        Grupo g = new Grupo();
+        g.setCodigoGrupo(in.getCodigoGrupo());
+        g.setCupoMax(in.getCupoMax());
+        g.setAsignatura(a);
+
+        return toDto(grupoService.crear(g));
+    }
+
+    public Page&lt;GrupoDTO&gt; listar(Pageable pageable) {
+        return grupoService.listar(pageable).map(this::toDto);
+    }
+
+    public void eliminar(Long id) {
+        grupoService.eliminar(id);
+    }
+
+    private GrupoDTO toDto(Grupo g) {
+        GrupoDTO dto = new GrupoDTO();
+        dto.setId(g.getId());
+        dto.setCodigoGrupo(g.getCodigoGrupo());
+        dto.setCupoMax(g.getCupoMax());
+        dto.setAsignaturaId(g.getAsignatura().getId());
+        dto.setAsignaturaNombre(g.getAsignatura().getNombre());
+        return dto;
+    }
+}</code></pre>
+
+    <pre><code>// MatriculaHandler.java
+package co.edu.demoacademico.handler;
+
+import co.edu.demoacademico.dto.MatriculaCreateDTO;
+import co.edu.demoacademico.dto.MatriculaDTO;
 import co.edu.demoacademico.model.Matricula;
 import co.edu.demoacademico.service.MatriculaService;
 import org.springframework.stereotype.Component;
@@ -636,29 +1052,175 @@ public class MatriculaHandler {
         this.service = service;
     }
 
-    public Matricula crear(MatriculaCreateDTO in) {
-        return service.matricular(in.getEstudianteId(), in.getGrupoId());
+    public MatriculaDTO matricular(MatriculaCreateDTO in) {
+        Matricula m = service.matricular(in.getEstudianteId(), in.getGrupoId());
+        return toDto(m);
+    }
+
+    private MatriculaDTO toDto(Matricula m) {
+        MatriculaDTO dto = new MatriculaDTO();
+        dto.setId(m.getId());
+        dto.setEstudianteId(m.getEstudiante().getId());
+        dto.setEstudianteNombre(m.getEstudiante().getNombre());
+        dto.setGrupoId(m.getGrupo().getId());
+        dto.setCodigoGrupo(m.getGrupo().getCodigoGrupo());
+        dto.setFechaRegistro(m.getFechaRegistro());
+        return dto;
     }
 }</code></pre>
 
-    <div class="note">
-      <strong>Guía:</strong> Repite el patrón del Lab 02 para Programa/Asignatura/Grupo:
-      <code>Handler</code> arma la entidad, llama al <code>Service</code> y devuelve DTO.
-    </div>
-
     <hr />
 
-    <h3>5.6 Paso 6 — Controllers (ApiResponse + Pageable)</h3>
+    <!-- ===============================
+         PASO A6: CONTROLLERS
+    ================================ -->
+    <h3>1.7 Paso A6 — Crear Controllers (ApiResponse + ResponseBuilder)</h3>
+    <p>Crea paquete <code>co.edu.demoacademico.controller</code> y añade estos controllers.</p>
 
-    <h4>MatriculaController (flujo principal)</h4>
-    <pre><code>// src/main/java/co/edu/demoacademico/controller/MatriculaController.java
+    <pre><code>// ProgramaController.java
 package co.edu.demoacademico.controller;
 
 import co.edu.demoacademico.api.ApiResponse;
 import co.edu.demoacademico.api.ResponseBuilder;
-import co.edu.demoacademico.dto.matricula.MatriculaCreateDTO;
+import co.edu.demoacademico.dto.ProgramaCreateDTO;
+import co.edu.demoacademico.dto.ProgramaDTO;
+import co.edu.demoacademico.dto.ProgramaUpdateDTO;
+import co.edu.demoacademico.handler.ProgramaHandler;
+import jakarta.validation.Valid;
+import org.springdoc.core.annotations.ParameterObject;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+@RestController
+@RequestMapping("/api/programas")
+public class ProgramaController {
+
+    private final ProgramaHandler handler;
+
+    public ProgramaController(ProgramaHandler handler) {
+        this.handler = handler;
+    }
+
+    @PostMapping
+    public ResponseEntity&lt;ApiResponse&lt;ProgramaDTO&gt;&gt; crear(@Valid @RequestBody ProgramaCreateDTO in) {
+        return ResponseBuilder.created("Programa creado", handler.crear(in));
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity&lt;ApiResponse&lt;ProgramaDTO&gt;&gt; obtener(@PathVariable Long id) {
+        return ResponseBuilder.ok("OK", handler.obtener(id));
+    }
+
+    @GetMapping
+    public ResponseEntity&lt;ApiResponse&lt;Page&lt;ProgramaDTO&gt;&gt;&gt; listar(@ParameterObject Pageable pageable) {
+        return ResponseBuilder.ok("OK", handler.listar(pageable));
+    }
+
+    @PutMapping("/{id}")
+    public ResponseEntity&lt;ApiResponse&lt;ProgramaDTO&gt;&gt; actualizar(@PathVariable Long id, @Valid @RequestBody ProgramaUpdateDTO in) {
+        return ResponseBuilder.ok("Programa actualizado", handler.actualizar(id, in));
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity&lt;ApiResponse&lt;Object&gt;&gt; eliminar(@PathVariable Long id) {
+        handler.eliminar(id);
+        return ResponseBuilder.ok("Programa eliminado", null);
+    }
+}</code></pre>
+
+    <pre><code>// AsignaturaController.java
+package co.edu.demoacademico.controller;
+
+import co.edu.demoacademico.api.ApiResponse;
+import co.edu.demoacademico.api.ResponseBuilder;
+import co.edu.demoacademico.dto.AsignaturaCreateDTO;
+import co.edu.demoacademico.dto.AsignaturaDTO;
+import co.edu.demoacademico.handler.AsignaturaHandler;
+import jakarta.validation.Valid;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+
+@RestController
+@RequestMapping("/api/asignaturas")
+public class AsignaturaController {
+
+    private final AsignaturaHandler handler;
+
+    public AsignaturaController(AsignaturaHandler handler) {
+        this.handler = handler;
+    }
+
+    @PostMapping
+    public ResponseEntity&lt;ApiResponse&lt;AsignaturaDTO&gt;&gt; crear(@Valid @RequestBody AsignaturaCreateDTO in) {
+        return ResponseBuilder.created("Asignatura creada", handler.crear(in));
+    }
+
+    @GetMapping
+    public ResponseEntity&lt;ApiResponse&lt;List&lt;AsignaturaDTO&gt;&gt;&gt; listar() {
+        return ResponseBuilder.ok("OK", handler.listar());
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity&lt;ApiResponse&lt;Object&gt;&gt; eliminar(@PathVariable Long id) {
+        handler.eliminar(id);
+        return ResponseBuilder.ok("Asignatura eliminada", null);
+    }
+}</code></pre>
+
+    <pre><code>// GrupoController.java
+package co.edu.demoacademico.controller;
+
+import co.edu.demoacademico.api.ApiResponse;
+import co.edu.demoacademico.api.ResponseBuilder;
+import co.edu.demoacademico.dto.GrupoCreateDTO;
+import co.edu.demoacademico.dto.GrupoDTO;
+import co.edu.demoacademico.handler.GrupoHandler;
+import jakarta.validation.Valid;
+import org.springdoc.core.annotations.ParameterObject;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+@RestController
+@RequestMapping("/api/grupos")
+public class GrupoController {
+
+    private final GrupoHandler handler;
+
+    public GrupoController(GrupoHandler handler) {
+        this.handler = handler;
+    }
+
+    @PostMapping
+    public ResponseEntity&lt;ApiResponse&lt;GrupoDTO&gt;&gt; crear(@Valid @RequestBody GrupoCreateDTO in) {
+        return ResponseBuilder.created("Grupo creado", handler.crear(in));
+    }
+
+    @GetMapping
+    public ResponseEntity&lt;ApiResponse&lt;Page&lt;GrupoDTO&gt;&gt;&gt; listar(@ParameterObject Pageable pageable) {
+        return ResponseBuilder.ok("OK", handler.listar(pageable));
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity&lt;ApiResponse&lt;Object&gt;&gt; eliminar(@PathVariable Long id) {
+        handler.eliminar(id);
+        return ResponseBuilder.ok("Grupo eliminado", null);
+    }
+}</code></pre>
+
+    <pre><code>// MatriculaController.java
+package co.edu.demoacademico.controller;
+
+import co.edu.demoacademico.api.ApiResponse;
+import co.edu.demoacademico.api.ResponseBuilder;
+import co.edu.demoacademico.dto.MatriculaCreateDTO;
+import co.edu.demoacademico.dto.MatriculaDTO;
 import co.edu.demoacademico.handler.MatriculaHandler;
-import co.edu.demoacademico.model.Matricula;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -674,132 +1236,445 @@ public class MatriculaController {
     }
 
     @PostMapping
-    public ResponseEntity&lt;ApiResponse&lt;Matricula&gt;&gt; matricular(@Valid @RequestBody MatriculaCreateDTO in) {
-        // Puedes devolver MatriculaDTO si prefieres no exponer entity.
-        return ResponseBuilder.created("Matrícula creada", handler.crear(in));
+    public ResponseEntity&lt;ApiResponse&lt;MatriculaDTO&gt;&gt; matricular(@Valid @RequestBody MatriculaCreateDTO in) {
+        return ResponseBuilder.created("Matrícula registrada", handler.matricular(in));
+    }
+}</code></pre>
+
+    <hr />
+
+    <!-- ===============================
+         PASO A7: SEEDER EXTENDIDO
+    ================================ -->
+    <h3>1.8 Paso A7 — Extender Seeder (Programas/Asignaturas/Grupos)</h3>
+
+    <p>Archivo sugerido: <code>src/main/java/co/edu/demoacademico/config/DataSeederAcademico.java</code></p>
+
+    <pre><code>package co.edu.demoacademico.config;
+
+import co.edu.demoacademico.model.Asignatura;
+import co.edu.demoacademico.model.Grupo;
+import co.edu.demoacademico.model.Programa;
+import co.edu.demoacademico.repository.AsignaturaRepository;
+import co.edu.demoacademico.repository.GrupoRepository;
+import co.edu.demoacademico.repository.ProgramaRepository;
+import com.github.javafaker.Faker;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.CommandLineRunner;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+
+import java.util.Locale;
+
+@Configuration
+public class DataSeederAcademico {
+
+    @Value("${app.seed.enabled:true}")
+    private boolean enabled;
+
+    @Value("${app.seed.cantidad-programas:3}")
+    private int cantProgramas;
+
+    @Value("${app.seed.cantidad-asignaturas:10}")
+    private int cantAsignaturas;
+
+    @Value("${app.seed.cantidad-grupos:20}")
+    private int cantGrupos;
+
+    @Bean
+    CommandLineRunner seedAcademico(
+            ProgramaRepository programaRepo,
+            AsignaturaRepository asignaturaRepo,
+            GrupoRepository grupoRepo
+    ) {
+        return args -&gt; {
+            if (!enabled) return;
+
+            // si ya hay data, no duplicar
+            if (programaRepo.count() &gt; 0 || asignaturaRepo.count() &gt; 0 || grupoRepo.count() &gt; 0) return;
+
+            Faker faker = new Faker(new Locale("es"));
+
+            // 1) Programas
+            Programa[] programas = new Programa[cantProgramas];
+            for (int i = 0; i &lt; cantProgramas; i++) {
+                Programa p = new Programa();
+                p.setCodigo("PROG-" + (i + 1));
+                p.setNombre("Programa " + faker.educator().course());
+                programas[i] = programaRepo.save(p);
+            }
+
+            // 2) Asignaturas (reparte entre programas)
+            Asignatura[] asignaturas = new Asignatura[cantAsignaturas];
+            for (int i = 0; i &lt; cantAsignaturas; i++) {
+                Programa p = programas[i % cantProgramas];
+
+                Asignatura a = new Asignatura();
+                a.setCodigo("ASIG-" + (i + 1));
+                a.setNombre("Asignatura " + faker.educator().course());
+                a.setCreditos(2 + (i % 3));
+                a.setPrograma(p);
+
+                asignaturas[i] = asignaturaRepo.save(a);
+            }
+
+            // 3) Grupos (reparte entre asignaturas)
+            for (int i = 0; i &lt; cantGrupos; i++) {
+                Asignatura a = asignaturas[i % cantAsignaturas];
+
+                Grupo g = new Grupo();
+                g.setCodigoGrupo("G-" + a.getCodigo() + "-" + (i + 1));
+                g.setCupoMax(2 + (i % 4)); // entre 2 y 5
+                g.setAsignatura(a);
+
+                grupoRepo.save(g);
+            }
+        };
     }
 }</code></pre>
 
     <div class="note">
-      <strong>Recomendación:</strong> Si quieres mantener 100% DTO (sin exponer entity),
-      crea un <code>MatriculaDTO</code> con: <code>id, estudianteId, grupoId, fechaRegistro</code>.
+      Si ya tienes un seeder del Lab 02, puedes dejarlo intacto y agregar este nuevo seeder.
+      Con eso siembras “academia” sin tocar tu siembra de estudiantes.
     </div>
 
     <hr />
 
-    <h3>5.7 Paso 7 — CRUD de Programa/Asignatura/Grupo</h3>
-    <p>
-      Implementa los tres módulos como en Estudiantes:
-      <strong>DTOs + Handler + Service + Repository + Controller</strong>.
-      En los Controllers, agrega paginación a:
-      <code>GET /api/programas</code> y <code>GET /api/grupos</code>.
-    </p>
-
-    <pre><code>// Ejemplo firma Controller paginado
-// GET /api/programas?page=0&amp;size=5&amp;sort=nombre,asc
-@GetMapping
-public ResponseEntity&lt;ApiResponse&lt;Page&lt;ProgramaDTO&gt;&gt;&gt; listar(@ParameterObject Pageable pageable) {
-    return ResponseBuilder.ok("OK", handler.listar(pageable));
-}</code></pre>
-  </section>
-
-  <hr />
-
-  <section id="reglas">
-    <h2>6) Reglas de negocio obligatorias</h2>
+    <h3>1.9 Paso A8 — Verificar en Swagger y H2</h3>
     <ol>
-      <li><strong>Matrícula duplicada:</strong> no permitir matricular el mismo estudiante en el mismo grupo dos veces.</li>
-      <li><strong>Cupo:</strong> no permitir matrícula si <code>matriculados &gt;= cupoMax</code>.</li>
-      <li><strong>Existencia:</strong> si estudiante o grupo no existe → lanzar <code>NotFoundException</code>.</li>
+      <li>Arranca la app</li>
+      <li>Entra a Swagger: <code>http://localhost:8080/swagger-ui.html</code></li>
+      <li>Entra a H2: <code>http://localhost:8080/h2-console</code> y verifica conteos</li>
     </ol>
 
-    <div class="note">
-      <strong>Plus:</strong> Puedes agregar en Programa la regla <code>codigo</code> único usando
-      <code>existsByCodigo</code> y una <code>BusinessException</code>.
-    </div>
+    <pre><code>SELECT COUNT(*) FROM programa;
+SELECT COUNT(*) FROM asignatura;
+SELECT COUNT(*) FROM grupo;
+SELECT COUNT(*) FROM matricula;</code></pre>
+
   </section>
 
   <hr />
 
-  <section id="seeder">
-    <h2>7) Seeder evolutivo (Programas/Asignaturas/Grupos)</h2>
+  <!-- =========================================================
+       PARTE 2
+  ========================================================== -->
+  <section id="parte2">
+    <h2>Parte 2 — Refactor por módulos + Ports (totalmente guiada)</h2>
 
     <p>
-      Extiende tu seeder del Lab 02 para que cree Programas, Asignaturas y Grupos.
-      El objetivo es poder probar matrícula sin crear todo manualmente.
+      En esta parte NO agregas nuevas funcionalidades: solo reorganizas el proyecto por módulos
+      y cambias la comunicación entre módulos para que sea mediante interfaces públicas (Ports).
     </p>
 
-    <pre><code>// src/main/java/co/edu/demoacademico/config/DataSeeder.java (ejemplo conceptual)
-// - si enabled=true y tablas están vacías, siembra
-// - crear N programas, por cada programa crear asignaturas, por cada asignatura crear grupos</code></pre>
+    <div class="warn">
+      <strong>Regla obligatoria:</strong> En el módulo <code>matriculas</code> queda PROHIBIDO inyectar
+      <code>EstudianteRepository</code> o <code>GrupoRepository</code>.
+      Solo se permite usar <strong>Ports</strong>.
+    </div>
+
+    <hr />
+
+    <h3>2.1 Paso B1 — Crear estructura por módulos (carpetas)</h3>
+    <p>Vas a reorganizar los paquetes así:</p>
+
+    <pre>co.edu.demoacademico
+├── common
+│   ├── api
+│   ├── exception
+│   └── controller
+├── estudiantes
+├── programas
+├── asignaturas
+├── grupos
+└── matriculas</pre>
 
     <div class="note">
-      <strong>Tip:</strong> Crea primero Programas, luego Asignaturas (asociadas) y al final Grupos (asociados).
-      Mantén coherencia de relaciones.
+      <strong>Qué va en common:</strong> ApiResponse, ResponseBuilder, GlobalExceptionHandler, BusinessException, NotFoundException.
     </div>
 
-    <div class="warn" style="margin-top:10px;">
-      <strong>Importante:</strong> No es obligatorio sembrar matrículas. Las matrículas se prueban en Swagger.
+    <hr />
+
+    <h3>2.2 Paso B2 — Mover "common" (transversal)</h3>
+    <p>Mueve estos archivos y ajusta su <code>package</code>:</p>
+    <ul>
+      <li><code>co.edu.demoacademico.api.*</code> → <code>co.edu.demoacademico.common.api.*</code></li>
+      <li><code>co.edu.demoacademico.exception.*</code> → <code>co.edu.demoacademico.common.exception.*</code></li>
+      <li><code>co.edu.demoacademico.controller.GlobalExceptionHandler</code> → <code>co.edu.demoacademico.common.controller</code></li>
+    </ul>
+
+    <h4>Ejemplo: BusinessException (nuevo package)</h4>
+    <pre><code>package co.edu.demoacademico.common.exception;
+
+public class BusinessException extends RuntimeException {
+    public BusinessException(String message) { super(message); }
+}</code></pre>
+
+    <div class="warn">
+      Después de mover, debes ajustar imports en TODOS los controllers/services/handlers:
+      ahora es <code>co.edu.demoacademico.common...</code>
     </div>
+
+    <hr />
+
+    <h3>2.3 Paso B3 — Mover módulos (feature-based packaging)</h3>
+    <p>
+      Mueve cada clase a su módulo:
+    </p>
+    <ul>
+      <li><strong>estudiantes</strong>: Estudiante + EstudianteRepository + EstudianteService + Handler + Controller + DTOs</li>
+      <li><strong>programas</strong>: Programa + repo + service + handler + controller + DTOs</li>
+      <li><strong>asignaturas</strong>: Asignatura + repo + service + handler + controller + DTOs</li>
+      <li><strong>grupos</strong>: Grupo + repo + service + handler + controller + DTOs</li>
+      <li><strong>matriculas</strong>: Matricula + repo + service + handler + controller + DTOs</li>
+    </ul>
+
+    <div class="note">
+      Mantén el mismo código, solo cambia el <code>package</code> y corrige imports.
+      Los endpoints NO deben cambiar.
+    </div>
+
+    <hr />
+
+    <h3>2.4 Paso B4 — Crear Ports en los módulos dueños (contratos públicos)</h3>
+
+    <h4>Archivo: <code>src/main/java/co/edu/demoacademico/estudiantes/port/EstudianteQueryPort.java</code></h4>
+    <pre><code>package co.edu.demoacademico.estudiantes.port;
+
+import co.edu.demoacademico.estudiantes.model.Estudiante;
+
+public interface EstudianteQueryPort {
+    Estudiante obtenerPorId(Long id);
+}</code></pre>
+
+    <h4>Archivo: <code>src/main/java/co/edu/demoacademico/grupos/port/GrupoQueryPort.java</code></h4>
+    <pre><code>package co.edu.demoacademico.grupos.port;
+
+import co.edu.demoacademico.grupos.model.Grupo;
+
+public interface GrupoQueryPort {
+    Grupo obtenerPorId(Long id);
+}</code></pre>
+
+    <hr />
+
+    <h3>2.5 Paso B5 — Hacer que los ServiceImpl implementen los Ports</h3>
+
+    <h4>EstudianteServiceImpl (ahora implementa EstudianteQueryPort)</h4>
+    <pre><code>package co.edu.demoacademico.estudiantes.service;
+
+import co.edu.demoacademico.common.exception.NotFoundException;
+import co.edu.demoacademico.estudiantes.model.Estudiante;
+import co.edu.demoacademico.estudiantes.port.EstudianteQueryPort;
+import co.edu.demoacademico.estudiantes.repository.EstudianteRepository;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+@Service
+@Transactional
+public class EstudianteServiceImpl implements EstudianteService, EstudianteQueryPort {
+
+    private final EstudianteRepository repo;
+
+    public EstudianteServiceImpl(EstudianteRepository repo) {
+        this.repo = repo;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Estudiante obtenerPorId(Long id) {
+        return repo.findById(id)
+                .orElseThrow(() -&gt; new NotFoundException("Estudiante no encontrado: " + id));
+    }
+
+    // ... (crear/listar/actualizar/eliminar) se quedan igual
+}</code></pre>
+
+    <h4>GrupoServiceImpl (ahora implementa GrupoQueryPort)</h4>
+    <pre><code>package co.edu.demoacademico.grupos.service;
+
+import co.edu.demoacademico.common.exception.NotFoundException;
+import co.edu.demoacademico.grupos.model.Grupo;
+import co.edu.demoacademico.grupos.port.GrupoQueryPort;
+import co.edu.demoacademico.grupos.repository.GrupoRepository;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+@Service
+@Transactional
+public class GrupoServiceImpl implements GrupoService, GrupoQueryPort {
+
+    private final GrupoRepository repo;
+
+    public GrupoServiceImpl(GrupoRepository repo) {
+        this.repo = repo;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Grupo obtenerPorId(Long id) {
+        return repo.findById(id)
+                .orElseThrow(() -&gt; new NotFoundException("Grupo no encontrado: " + id));
+    }
+
+    // ... (crear/listar/eliminar) se quedan igual
+}</code></pre>
+
+    <hr />
+
+    <h3>2.6 Paso B6 — Modificar MatriculaServiceImpl para usar SOLO Ports</h3>
+
+    <div class="warn">
+      En este paso eliminamos totalmente:
+      <code>EstudianteRepository</code> y <code>GrupoRepository</code> de Matrícula.
+    </div>
+
+    <h4>MatriculaServiceImpl (versión final con Ports)</h4>
+    <pre><code>package co.edu.demoacademico.matriculas.service;
+
+import co.edu.demoacademico.common.exception.BusinessException;
+import co.edu.demoacademico.estudiantes.model.Estudiante;
+import co.edu.demoacademico.estudiantes.port.EstudianteQueryPort;
+import co.edu.demoacademico.grupos.model.Grupo;
+import co.edu.demoacademico.grupos.port.GrupoQueryPort;
+import co.edu.demoacademico.matriculas.model.Matricula;
+import co.edu.demoacademico.matriculas.repository.MatriculaRepository;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+@Service
+@Transactional
+public class MatriculaServiceImpl implements MatriculaService {
+
+    private final EstudianteQueryPort estudiantePort;
+    private final GrupoQueryPort grupoPort;
+    private final MatriculaRepository matriculaRepo;
+
+    public MatriculaServiceImpl(EstudianteQueryPort estudiantePort,
+                                GrupoQueryPort grupoPort,
+                                MatriculaRepository matriculaRepo) {
+        this.estudiantePort = estudiantePort;
+        this.grupoPort = grupoPort;
+        this.matriculaRepo = matriculaRepo;
+    }
+
+    @Override
+    public Matricula matricular(Long estudianteId, Long grupoId) {
+
+        // existencia se valida por contrato público (y lanza NotFound desde el módulo dueño)
+        Estudiante estudiante = estudiantePort.obtenerPorId(estudianteId);
+        Grupo grupo = grupoPort.obtenerPorId(grupoId);
+
+        // no duplicado
+        if (matriculaRepo.existsByEstudianteIdAndGrupoId(estudianteId, grupoId)) {
+            throw new BusinessException("El estudiante ya está matriculado en ese grupo");
+        }
+
+        // cupo
+        long matriculados = matriculaRepo.countByGrupoId(grupoId);
+        if (matriculados &gt;= grupo.getCupoMax()) {
+            throw new BusinessException("El grupo no tiene cupo disponible");
+        }
+
+        Matricula m = new Matricula();
+        m.setEstudiante(estudiante);
+        m.setGrupo(grupo);
+        return matriculaRepo.save(m);
+    }
+}</code></pre>
+
+    <hr />
+
+    <h3>2.7 Paso B7 — Verificación arquitectónica (rápida)</h3>
+    <ol>
+      <li>Busca en el módulo <code>matriculas</code>:
+        <ul>
+          <li><strong>NO</strong> debe existir import a <code>...estudiantes.repository...</code></li>
+          <li><strong>NO</strong> debe existir import a <code>...grupos.repository...</code></li>
+          <li><strong>SÍ</strong> debe existir import a <code>...estudiantes.port.EstudianteQueryPort</code></li>
+          <li><strong>SÍ</strong> debe existir import a <code>...grupos.port.GrupoQueryPort</code></li>
+        </ul>
+      </li>
+      <li>Ejecuta la app y abre Swagger</li>
+      <li>Repite el guion de pruebas: debe funcionar exactamente igual (no regresión)</li>
+    </ol>
+
   </section>
 
   <hr />
 
-  <section id="endpoints">
-    <h2>8) Endpoints mínimos y pruebas en Swagger</h2>
-
-    <h3>8.1 Abrir Swagger</h3>
+  <!-- =========================================================
+       PRUEBAS
+  ========================================================== -->
+  <section id="pruebas">
+    <h2>Pruebas en Swagger (obligatorias)</h2>
     <pre>http://localhost:8080/swagger-ui.html</pre>
 
-    <h3>8.2 Endpoints mínimos</h3>
-    <ul>
-      <li><code>POST /api/programas</code> | <code>GET /api/programas</code> (paginado)</li>
-      <li><code>POST /api/asignaturas</code> | <code>GET /api/asignaturas</code> (puede filtrar por programaId)</li>
-      <li><code>POST /api/grupos</code> | <code>GET /api/grupos</code> (paginado)</li>
-      <li><code>POST /api/matriculas</code> (flujo principal)</li>
-    </ul>
-
-    <h3>8.3 Guion mínimo de pruebas (obligatorio)</h3>
+    <h3>Guion mínimo (Parte 1 y repetir en Parte 2)</h3>
     <ol>
-      <li>Crear un Programa</li>
-      <li>Crear una Asignatura asociada al Programa</li>
-      <li>Crear un Grupo con <code>cupoMax = 2</code></li>
-      <li>Crear 2 Estudiantes (o usar el seed)</li>
-      <li>Matricular Estudiante #1 en el Grupo → OK</li>
-      <li>Matricular Estudiante #2 en el Grupo → OK</li>
-      <li>Intentar matricular Estudiante #3 en el mismo Grupo → debe fallar por cupo (BusinessException)</li>
-      <li>Intentar matricular Estudiante #1 de nuevo en el mismo Grupo → debe fallar por duplicado (BusinessException)</li>
+      <li><strong>POST</strong> Programa</li>
+      <li><strong>POST</strong> Asignatura con <code>programaId</code></li>
+      <li><strong>POST</strong> Grupo con <code>asignaturaId</code> y <code>cupoMax=2</code></li>
+      <li><strong>POST</strong> Estudiante (o usa seed)</li>
+      <li><strong>POST</strong> Matrícula 1 (OK)</li>
+      <li><strong>POST</strong> Matrícula 2 (OK)</li>
+      <li><strong>POST</strong> Matrícula 3 al mismo grupo (debe fallar por cupo)</li>
+      <li><strong>POST</strong> Matrícula duplicada (debe fallar por duplicado)</li>
     </ol>
 
-    <h3>8.4 Ejemplo body Matrícula</h3>
+    <h3>Ejemplos de body</h3>
+
+    <h4>POST /api/programas</h4>
     <pre><code>{
-  "estudianteId": 1,
-  "grupoId": 10
+  "codigo": "PROG-ING",
+  "nombre": "Ingeniería de Software"
 }</code></pre>
 
-    <div class="note">
-      <strong>Validación:</strong> Asegúrate que los errores salgan como <code>ApiResponse</code> (success=false).
-    </div>
+    <h4>POST /api/asignaturas</h4>
+    <pre><code>{
+  "codigo": "ASIG-IS3",
+  "nombre": "Ingeniería de Software III",
+  "creditos": 3,
+  "programaId": 1
+}</code></pre>
+
+    <h4>POST /api/grupos</h4>
+    <pre><code>{
+  "codigoGrupo": "G-IS3-01",
+  "cupoMax": 2,
+  "asignaturaId": 1
+}</code></pre>
+
+    <h4>POST /api/matriculas</h4>
+    <pre><code>{
+  "estudianteId": 1,
+  "grupoId": 1
+}</code></pre>
   </section>
 
   <hr />
 
+  <!-- =========================================================
+       ENTREGABLE
+  ========================================================== -->
   <section id="entregable">
-    <h2>9) Entregable</h2>
+    <h2>Entregable</h2>
     <ul>
-      <li>Repositorio/zip del proyecto funcionando con Opción A.</li>
-      <li>Capturas o evidencia (texto) de Swagger con:
+      <li>Proyecto funcionando con Parte 1 completa.</li>
+      <li>Proyecto refactorizado por módulos con Parte 2 completa (Ports obligatorios).</li>
+      <li>Evidencia (capturas o texto) de:
         <ul>
           <li>2 matrículas exitosas</li>
-          <li>1 fallo por cupo</li>
-          <li>1 fallo por duplicado</li>
+          <li>1 error por cupo</li>
+          <li>1 error por duplicado</li>
+          <li>El mismo guion funcionando después del refactor (no regresión)</li>
         </ul>
       </li>
-      <li>README corto explicando:
+      <li>README corto con:
         <ul>
           <li>Cómo ejecutar</li>
-          <li>URL Swagger</li>
-          <li>Qué reglas implementaste</li>
+          <li>URL Swagger y H2</li>
+          <li>Ports creados (EstudianteQueryPort y GrupoQueryPort)</li>
         </ul>
       </li>
     </ul>
@@ -807,21 +1682,28 @@ public ResponseEntity&lt;ApiResponse&lt;Page&lt;ProgramaDTO&gt;&gt;&gt; listar(@
 
   <hr />
 
+  <!-- =========================================================
+       CHECKLIST
+  ========================================================== -->
   <section id="checklist">
     <h2>Checklist final</h2>
+
+    <h3>Parte 1</h3>
     <ul>
-      <li>Se mantuvo Opción A (DTO + Handler + ApiResponse).</li>
-      <li>CRUD de Programa/Asignatura/Grupo funcional.</li>
-      <li>Matrícula implementada con reglas:
-        <ul>
-          <li>No duplicado</li>
-          <li>Cupo</li>
-          <li>NotFound para estudiante/grupo inexistente</li>
-        </ul>
-      </li>
-      <li>Paginación en mínimo 2 endpoints.</li>
-      <li>Seeder evolutivo configurado por <code>app.seed.*</code>.</li>
-      <li>Pruebas realizadas desde Swagger.</li>
+      <li>Entidades: Programa, Asignatura, Grupo, Matricula creadas.</li>
+      <li>Reglas Matrícula: duplicado + cupo + existencia.</li>
+      <li>DTO + Handler + Service + Controller con ApiResponse.</li>
+      <li>Seeder para Programas/Asignaturas/Grupos (mínimo).</li>
+      <li>Guion Swagger pasa (incluye errores controlados).</li>
+    </ul>
+
+    <h3>Parte 2</h3>
+    <ul>
+      <li>Paquete <code>common</code> con API/Excepciones/Handler global.</li>
+      <li>Paquetes por módulos: estudiantes/programas/asignaturas/grupos/matriculas.</li>
+      <li>Ports: <code>EstudianteQueryPort</code> y <code>GrupoQueryPort</code>.</li>
+      <li>Matriculas depende de Ports y NO de repositorios ajenos.</li>
+      <li>No regresión: guion Swagger vuelve a pasar.</li>
     </ul>
   </section>
 
@@ -829,7 +1711,7 @@ public ResponseEntity&lt;ApiResponse&lt;Page&lt;ProgramaDTO&gt;&gt;&gt; listar(@
 
   <p class="small">
     Ingeniería de Software III — Laboratorio práctico (Lab 03).<br/>
-    Evolución del sistema académico con Opción A (DTO + ApiResponse + Handler) y reglas de negocio en Matrícula.
+    Parte 1: Implementación funcional. Parte 2: Refactor por módulos con Ports.
   </p>
 
 </main>
