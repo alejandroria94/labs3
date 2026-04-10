@@ -6,15 +6,15 @@
   <title>Lab 04</title>
 
   <style>
-    body { font-family: Arial, Helvetica, sans-serif; margin: 0; background: #ffffff; color: #111; line-height: 1.5; }
-    header { padding: 18px 18px; border-bottom: 1px solid #e6e6e6; background: #fafafa; }
+    body { font-family: Arial, Helvetica, sans-serif; margin: 0; background: #ffffff; color: #111; line-height: 1.6; }
+    header { padding: 18px; border-bottom: 1px solid #e6e6e6; background: #fafafa; }
     header a { color: #1f3c88; text-decoration: none; font-weight: bold; }
     header a:hover { text-decoration: underline; }
-    main { max-width: 1020px; margin: 0 auto; padding: 18px; }
+    main { max-width: 1100px; margin: 0 auto; padding: 18px; }
     h1 { margin: 0 0 6px 0; color: #1f3c88; font-size: 22px; }
     h2 { color: #1f3c88; margin-top: 26px; }
     h3 { color: #1f3c88; margin-top: 22px; }
-    h4 { color: #1f3c88; margin-bottom: 8px; margin-top: 18px; }
+    h4 { color: #1f3c88; margin-top: 18px; margin-bottom: 8px; }
     hr { border: 0; border-top: 1px solid #e6e6e6; margin: 22px 0; }
     pre { background: #f6f8fa; border: 1px solid #e6e6e6; border-radius: 10px; padding: 12px; overflow: auto; white-space: pre-wrap; word-break: break-word; }
     code { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
@@ -42,7 +42,7 @@
 <main>
 
   <h1>Lab 04</h1>
-  <h2>Construcción desde cero de un proyecto base y evolución a microservicios con JWT, H2, Swagger, OpenFeign y Docker</h2>
+  <h2>Construcción desde cero de un proyecto base y evolución a microservicios con JWT, H2, Swagger, OpenFeign, filtro de seguridad y Docker</h2>
 
   <p>
     En este laboratorio se construirá primero un <strong>proyecto base</strong> con la arquitectura esperada del curso:
@@ -52,10 +52,9 @@
   </p>
 
   <p>
-    Al finalizar el recorrido, la solución quedará compuesta por dos microservicios:
-    uno para autenticación y otro para consulta protegida de estudiantes.
-    La validación del token se realizará mediante comunicación entre servicios usando <strong>OpenFeign</strong>,
-    y la ejecución conjunta se hará con <strong>Docker Compose</strong>.
+    El ejercicio busca que se comprenda el flujo completo de autenticación entre microservicios:
+    generación del token, transporte del token, validación del token y autorización para consumir un recurso protegido.
+    Además, se trabajará con Swagger para documentar y probar el comportamiento del sistema y con Docker para ejecutar ambos servicios de forma integrada.
   </p>
 
   <div class="note">
@@ -68,14 +67,17 @@
       <li>contraseñas cifradas con BCrypt;</li>
       <li>JWT para autenticación;</li>
       <li>OpenFeign para comunicación entre microservicios;</li>
+      <li>Swagger con <code>Authorize</code> y esquema Bearer;</li>
+      <li>filtro de seguridad en <code>consulta-service</code>;</li>
       <li>Docker para despliegue local.</li>
     </ul>
   </div>
 
   <div class="warn" style="margin-top:10px;">
     <strong>Importante:</strong>
-    en esta versión inicial ambos servicios usarán <strong>H2 embebido</strong>.
-    Esto permite concentrarse en el flujo completo sin agregar todavía la complejidad de una base de datos externa.
+    en esta versión ambos servicios usarán <strong>H2 embebido</strong>.
+    Esto permite concentrarse en la arquitectura, el flujo del token y la comunicación entre servicios,
+    sin agregar todavía complejidad de infraestructura externa.
   </div>
 
   <hr />
@@ -90,11 +92,12 @@
       <li><a href="#parte1">5) Parte 1 — Crear consulta-service a partir del proyecto base</a></li>
       <li><a href="#parte2">6) Parte 2 — Crear auth-service con H2, BCrypt y JWT</a></li>
       <li><a href="#parte3">7) Parte 3 — Integrar OpenFeign entre consulta-service y auth-service</a></li>
-      <li><a href="#parte4">8) Parte 4 — Proteger el endpoint de estudiantes</a></li>
+      <li><a href="#parte4">8) Parte 4 — Implementar seguridad del flujo de acceso en consulta-service</a></li>
       <li><a href="#parte5">9) Parte 5 — Dockerizar y orquestar ambos servicios</a></li>
       <li><a href="#pruebas">10) Pruebas obligatorias en Swagger</a></li>
-      <li><a href="#entregable">11) Entregable</a></li>
-      <li><a href="#checklist">12) Checklist final</a></li>
+      <li><a href="#diagnostico">11) Diagnóstico rápido de fallos</a></li>
+      <li><a href="#entregable">12) Entregable</a></li>
+      <li><a href="#checklist">13) Checklist final</a></li>
     </ul>
   </div>
 
@@ -106,6 +109,13 @@
     <p>
       Al finalizar el laboratorio, se deberá contar con una solución funcional compuesta por dos microservicios:
       uno encargado de la autenticación y generación de JWT, y otro encargado de la consulta de estudiantes protegida por token.
+    </p>
+
+    <p>
+      Este laboratorio no solo busca que la solución funcione, sino que permita entender
+      <strong>por qué</strong> cada paso es importante:
+      por qué se separan responsabilidades, por qué se cifra la contraseña, por qué se usa un token,
+      por qué conviene documentar la seguridad en Swagger y por qué es útil centralizar la validación del acceso.
     </p>
 
     <pre><code>Cliente
@@ -125,8 +135,8 @@ Cliente
    v
 consulta-service
    |
-   | llama a auth-service con OpenFeign
-   | /auth/validate?token=...
+   | intercepta la petición
+   | valida token con auth-service
    v
 auth-service
    |
@@ -134,7 +144,7 @@ auth-service
    v
 consulta-service
    |
-   | si el token es válido devuelve estudiantes
+   | permite acceso al recurso solicitado
    v
 Cliente</code></pre>
   </section>
@@ -161,8 +171,14 @@ docker --version</code></pre>
 
     <p>
       Si alguno de los tres comandos falla, corrija el problema antes de continuar.
-      Continúe con el paso siguiente únicamente cuando los tres comandos respondan correctamente.
+      Continúe únicamente cuando los tres comandos respondan correctamente.
     </p>
+
+    <div class="note">
+      <strong>Buena práctica:</strong>
+      verificar el entorno antes de empezar evita confundir errores de configuración local con errores del ejercicio.
+      Si Maven o Java no están bien instalados, el problema no será del código sino del entorno.
+    </div>
   </section>
 
   <hr />
@@ -171,8 +187,6 @@ docker --version</code></pre>
     <h2>3) Arquitectura esperada</h2>
 
     <h3>3.1 Estructura del proyecto base</h3>
-    <p>El proyecto base debe quedar organizado así:</p>
-
     <pre><code>co.edu.demoacademico
 ├── DemoAcademicoApplication.java
 ├── api
@@ -201,7 +215,6 @@ docker --version</code></pre>
     └── EstudianteServiceImpl.java</code></pre>
 
     <h3>3.2 Estructura final esperada</h3>
-
     <pre><code>microservicios-demoacademico/
 ├── auth-service/
 │   ├── pom.xml
@@ -213,8 +226,10 @@ docker --version</code></pre>
     └── src/</code></pre>
 
     <div class="note">
-      Primero se construirá el proyecto base completo.
-      Cuando esa parte ya esté funcional, se continuará con la separación en microservicios.
+      <strong>Buena práctica:</strong>
+      trabajar con una arquitectura por capas permite separar responsabilidades.
+      Esto hace más fácil mantener, probar y ampliar el proyecto.
+      Cuando luego se pasa a microservicios, esa organización inicial ayuda a no mezclar lógica técnica con lógica del negocio.
     </div>
   </section>
 
@@ -251,7 +266,13 @@ docker --version</code></pre>
       <li>H2 Database</li>
     </ul>
 
-    <p>Continúe con el paso siguiente cuando el proyecto ya se encuentre creado y abra correctamente en el IDE.</p>
+    <p>Continúe cuando el proyecto ya se encuentre creado y abra correctamente en el IDE.</p>
+
+    <div class="note">
+      <strong>Buena práctica:</strong>
+      comenzar con un proyecto base sencillo permite validar primero el estilo arquitectónico,
+      la persistencia y la documentación antes de agregar seguridad y comunicación entre servicios.
+    </div>
 
     <h3>4.2 Reemplazar completamente el archivo pom.xml</h3>
     <p>Abra el archivo <code>pom.xml</code> y reemplácelo completamente por el siguiente contenido:</p>
@@ -331,8 +352,6 @@ docker --version</code></pre>
     &lt;/build&gt;
 &lt;/project&gt;</code></pre>
 
-    <p>Continúe cuando el IDE termine de descargar dependencias y ya no muestre errores en el archivo.</p>
-
     <h3>4.3 Crear el archivo application.yaml</h3>
     <p>Cree o reemplace el archivo <code>src/main/resources/application.yaml</code> con este contenido:</p>
 
@@ -374,9 +393,13 @@ app:
     enabled: true
     cantidad: 500</code></pre>
 
-    <h3>4.4 Crear los paquetes de la arquitectura</h3>
-    <p>Dentro de <code>src/main/java/co/edu/demoacademico</code>, cree las siguientes carpetas:</p>
+    <div class="note">
+      <strong>Buena práctica:</strong>
+      externalizar la configuración en <code>application.yaml</code> facilita cambiar puertos,
+      activar o desactivar semillas y modificar parámetros sin tocar el código fuente.
+    </div>
 
+    <h3>4.4 Crear los paquetes de la arquitectura</h3>
     <pre><code>api
 config
 controller
@@ -386,8 +409,6 @@ handler
 model
 repository
 service</code></pre>
-
-    <p>Continúe cuando la estructura de carpetas coincida con la arquitectura esperada.</p>
 
     <h3>4.5 Crear la clase principal del proyecto</h3>
     <p>Archivo: <code>src/main/java/co/edu/demoacademico/DemoAcademicoApplication.java</code></p>
@@ -406,7 +427,7 @@ public class DemoAcademicoApplication {
 }</code></pre>
 
     <h3>4.6 Crear la entidad Estudiante</h3>
-    <p>Archivo: <code>model/Estudiante.java</code></p>
+    <p>Archivo: <code>src/main/java/co/edu/demoacademico/model/Estudiante.java</code></p>
 
     <pre><code>package co.edu.demoacademico.model;
 
@@ -437,50 +458,30 @@ public class Estudiante {
     public Estudiante() {
     }
 
-    public Long getId() {
-        return id;
-    }
+    public Long getId() { return id; }
+    public void setId(Long id) { this.id = id; }
 
-    public void setId(Long id) {
-        this.id = id;
-    }
+    public String getNombre() { return nombre; }
+    public void setNombre(String nombre) { this.nombre = nombre; }
 
-    public String getNombre() {
-        return nombre;
-    }
+    public String getApellido() { return apellido; }
+    public void setApellido(String apellido) { this.apellido = apellido; }
 
-    public void setNombre(String nombre) {
-        this.nombre = nombre;
-    }
+    public String getEmail() { return email; }
+    public void setEmail(String email) { this.email = email; }
 
-    public String getApellido() {
-        return apellido;
-    }
-
-    public void setApellido(String apellido) {
-        this.apellido = apellido;
-    }
-
-    public String getEmail() {
-        return email;
-    }
-
-    public void setEmail(String email) {
-        this.email = email;
-    }
-
-    public Integer getEdad() {
-        return edad;
-    }
-
-    public void setEdad(Integer edad) {
-        this.edad = edad;
-    }
+    public Integer getEdad() { return edad; }
+    public void setEdad(Integer edad) { this.edad = edad; }
 }</code></pre>
+
+    <div class="note">
+      <strong>Buena práctica:</strong>
+      definir restricciones como unicidad del correo desde la entidad ayuda a proteger la consistencia de la información.
+    </div>
 
     <h3>4.7 Crear los DTOs del estudiante</h3>
 
-    <h4>Archivo: dto/EstudianteCreateDTO.java</h4>
+    <h4>Archivo: src/main/java/co/edu/demoacademico/dto/EstudianteCreateDTO.java</h4>
     <pre><code>package co.edu.demoacademico.dto;
 
 import jakarta.validation.constraints.Email;
@@ -504,40 +505,20 @@ public class EstudianteCreateDTO {
     @Min(value = 1, message = "La edad mínima es 1")
     private Integer edad;
 
-    public String getNombre() {
-        return nombre;
-    }
+    public String getNombre() { return nombre; }
+    public void setNombre(String nombre) { this.nombre = nombre; }
 
-    public void setNombre(String nombre) {
-        this.nombre = nombre;
-    }
+    public String getApellido() { return apellido; }
+    public void setApellido(String apellido) { this.apellido = apellido; }
 
-    public String getApellido() {
-        return apellido;
-    }
+    public String getEmail() { return email; }
+    public void setEmail(String email) { this.email = email; }
 
-    public void setApellido(String apellido) {
-        this.apellido = apellido;
-    }
-
-    public String getEmail() {
-        return email;
-    }
-
-    public void setEmail(String email) {
-        this.email = email;
-    }
-
-    public Integer getEdad() {
-        return edad;
-    }
-
-    public void setEdad(Integer edad) {
-        this.edad = edad;
-    }
+    public Integer getEdad() { return edad; }
+    public void setEdad(Integer edad) { this.edad = edad; }
 }</code></pre>
 
-    <h4>Archivo: dto/EstudianteUpdateDTO.java</h4>
+    <h4>Archivo: src/main/java/co/edu/demoacademico/dto/EstudianteUpdateDTO.java</h4>
     <pre><code>package co.edu.demoacademico.dto;
 
 import jakarta.validation.constraints.Email;
@@ -561,40 +542,20 @@ public class EstudianteUpdateDTO {
     @Min(value = 1, message = "La edad mínima es 1")
     private Integer edad;
 
-    public String getNombre() {
-        return nombre;
-    }
+    public String getNombre() { return nombre; }
+    public void setNombre(String nombre) { this.nombre = nombre; }
 
-    public void setNombre(String nombre) {
-        this.nombre = nombre;
-    }
+    public String getApellido() { return apellido; }
+    public void setApellido(String apellido) { this.apellido = apellido; }
 
-    public String getApellido() {
-        return apellido;
-    }
+    public String getEmail() { return email; }
+    public void setEmail(String email) { this.email = email; }
 
-    public void setApellido(String apellido) {
-        this.apellido = apellido;
-    }
-
-    public String getEmail() {
-        return email;
-    }
-
-    public void setEmail(String email) {
-        this.email = email;
-    }
-
-    public Integer getEdad() {
-        return edad;
-    }
-
-    public void setEdad(Integer edad) {
-        this.edad = edad;
-    }
+    public Integer getEdad() { return edad; }
+    public void setEdad(Integer edad) { this.edad = edad; }
 }</code></pre>
 
-    <h4>Archivo: dto/EstudianteDTO.java</h4>
+    <h4>Archivo: src/main/java/co/edu/demoacademico/dto/EstudianteDTO.java</h4>
     <pre><code>package co.edu.demoacademico.dto;
 
 public class EstudianteDTO {
@@ -605,71 +566,49 @@ public class EstudianteDTO {
     private String email;
     private Integer edad;
 
-    public Long getId() {
-        return id;
-    }
+    public Long getId() { return id; }
+    public void setId(Long id) { this.id = id; }
 
-    public void setId(Long id) {
-        this.id = id;
-    }
+    public String getNombre() { return nombre; }
+    public void setNombre(String nombre) { this.nombre = nombre; }
 
-    public String getNombre() {
-        return nombre;
-    }
+    public String getApellido() { return apellido; }
+    public void setApellido(String apellido) { this.apellido = apellido; }
 
-    public void setNombre(String nombre) {
-        this.nombre = nombre;
-    }
+    public String getEmail() { return email; }
+    public void setEmail(String email) { this.email = email; }
 
-    public String getApellido() {
-        return apellido;
-    }
-
-    public void setApellido(String apellido) {
-        this.apellido = apellido;
-    }
-
-    public String getEmail() {
-        return email;
-    }
-
-    public void setEmail(String email) {
-        this.email = email;
-    }
-
-    public Integer getEdad() {
-        return edad;
-    }
-
-    public void setEdad(Integer edad) {
-        this.edad = edad;
-    }
+    public Integer getEdad() { return edad; }
+    public void setEdad(Integer edad) { this.edad = edad; }
 }</code></pre>
+
+    <div class="note">
+      <strong>Buena práctica:</strong>
+      usar DTO evita exponer directamente la entidad y permite controlar qué datos entran y salen del sistema.
+    </div>
 
     <h3>4.8 Crear las excepciones de negocio</h3>
 
-    <h4>Archivo: exception/BusinessException.java</h4>
+    <h4>Archivo: src/main/java/co/edu/demoacademico/exception/BusinessException.java</h4>
     <pre><code>package co.edu.demoacademico.exception;
 
 public class BusinessException extends RuntimeException {
-
     public BusinessException(String message) {
         super(message);
     }
 }</code></pre>
 
-    <h4>Archivo: exception/NotFoundException.java</h4>
+    <h4>Archivo: src/main/java/co/edu/demoacademico/exception/NotFoundException.java</h4>
     <pre><code>package co.edu.demoacademico.exception;
 
 public class NotFoundException extends RuntimeException {
-
     public NotFoundException(String message) {
         super(message);
     }
 }</code></pre>
 
     <h3>4.9 Crear el repositorio JPA</h3>
-    <p>Archivo: <code>repository/EstudianteRepository.java</code></p>
+    <p>Archivo: <code>src/main/java/co/edu/demoacademico/repository/EstudianteRepository.java</code></p>
 
     <pre><code>package co.edu.demoacademico.repository;
 
@@ -682,7 +621,7 @@ public interface EstudianteRepository extends JpaRepository&lt;Estudiante, Long&
 }</code></pre>
 
     <h3>4.10 Crear la interfaz del servicio</h3>
-    <p>Archivo: <code>service/EstudianteService.java</code></p>
+    <p>Archivo: <code>src/main/java/co/edu/demoacademico/service/EstudianteService.java</code></p>
 
     <pre><code>package co.edu.demoacademico.service;
 
@@ -699,7 +638,7 @@ public interface EstudianteService {
 }</code></pre>
 
     <h3>4.11 Crear la implementación del servicio</h3>
-    <p>Archivo: <code>service/EstudianteServiceImpl.java</code></p>
+    <p>Archivo: <code>src/main/java/co/edu/demoacademico/service/EstudianteServiceImpl.java</code></p>
 
     <pre><code>package co.edu.demoacademico.service;
 
@@ -765,9 +704,14 @@ public class EstudianteServiceImpl implements EstudianteService {
     }
 }</code></pre>
 
+    <div class="note">
+      <strong>Buena práctica:</strong>
+      ubicar las reglas de negocio en el servicio permite centralizar validaciones y evitar que cada controller repita lógica.
+    </div>
+
     <h3>4.12 Crear la respuesta estándar</h3>
 
-    <h4>Archivo: api/ApiResponse.java</h4>
+    <h4>Archivo: src/main/java/co/edu/demoacademico/api/ApiResponse.java</h4>
     <pre><code>package co.edu.demoacademico.api;
 
 public class ApiResponse&lt;T&gt; {
@@ -785,32 +729,17 @@ public class ApiResponse&lt;T&gt; {
         this.data = data;
     }
 
-    public boolean isSuccess() {
-        return success;
-    }
+    public boolean isSuccess() { return success; }
+    public void setSuccess(boolean success) { this.success = success; }
 
-    public void setSuccess(boolean success) {
-        this.success = success;
-    }
+    public String getMessage() { return message; }
+    public void setMessage(String message) { this.message = message; }
 
-    public String getMessage() {
-        return message;
-    }
-
-    public void setMessage(String message) {
-        this.message = message;
-    }
-
-    public T getData() {
-        return data;
-    }
-
-    public void setData(T data) {
-        this.data = data;
-    }
+    public T getData() { return data; }
+    public void setData(T data) { this.data = data; }
 }</code></pre>
 
-    <h4>Archivo: api/ResponseBuilder.java</h4>
+    <h4>Archivo: src/main/java/co/edu/demoacademico/api/ResponseBuilder.java</h4>
     <pre><code>package co.edu.demoacademico.api;
 
 import org.springframework.http.HttpStatus;
@@ -833,8 +762,13 @@ public class ResponseBuilder {
     }
 }</code></pre>
 
+    <div class="note">
+      <strong>Buena práctica:</strong>
+      una respuesta uniforme facilita las pruebas, mejora la lectura en Swagger y hace más consistente el consumo desde clientes externos.
+    </div>
+
     <h3>4.13 Crear el Handler</h3>
-    <p>Archivo: <code>handler/EstudianteHandler.java</code></p>
+    <p>Archivo: <code>src/main/java/co/edu/demoacademico/handler/EstudianteHandler.java</code></p>
 
     <pre><code>package co.edu.demoacademico.handler;
 
@@ -898,7 +832,7 @@ public class EstudianteHandler {
 }</code></pre>
 
     <h3>4.14 Crear el controlador REST</h3>
-    <p>Archivo: <code>controller/EstudianteController.java</code></p>
+    <p>Archivo: <code>src/main/java/co/edu/demoacademico/controller/EstudianteController.java</code></p>
 
     <pre><code>package co.edu.demoacademico.controller;
 
@@ -955,7 +889,7 @@ public class EstudianteController {
 }</code></pre>
 
     <h3>4.15 Crear el manejador global de excepciones</h3>
-    <p>Archivo: <code>controller/GlobalExceptionHandler.java</code></p>
+    <p>Archivo: <code>src/main/java/co/edu/demoacademico/controller/GlobalExceptionHandler.java</code></p>
 
     <pre><code>package co.edu.demoacademico.controller;
 
@@ -1005,8 +939,13 @@ public class GlobalExceptionHandler {
     }
 }</code></pre>
 
+    <div class="note">
+      <strong>Buena práctica:</strong>
+      centralizar el manejo de errores permite respuestas consistentes y evita llenar cada endpoint con bloques repetitivos de captura de excepciones.
+    </div>
+
     <h3>4.16 Crear el seeder de estudiantes</h3>
-    <p>Archivo: <code>config/DataSeeder.java</code></p>
+    <p>Archivo: <code>src/main/java/co/edu/demoacademico/config/DataSeeder.java</code></p>
 
     <pre><code>package co.edu.demoacademico.config;
 
@@ -1050,22 +989,12 @@ public class DataSeeder {
 }</code></pre>
 
     <h3>4.17 Compilar y probar el proyecto base</h3>
-    <p>Desde la raíz del proyecto, ejecute:</p>
-
     <pre><code>mvn clean package -DskipTests</code></pre>
-
-    <p>Posteriormente, ejecute la aplicación desde el IDE o con Maven.</p>
 
     <p>Verifique estas URLs:</p>
     <ul>
       <li><code>http://localhost:8080/swagger-ui.html</code></li>
       <li><code>http://localhost:8080/h2-console</code></li>
-    </ul>
-
-    <p>En Swagger, pruebe al menos:</p>
-    <ul>
-      <li><code>GET /api/estudiantes</code></li>
-      <li><code>POST /api/estudiantes</code></li>
     </ul>
 
     <div class="ok">
@@ -1079,7 +1008,6 @@ public class DataSeeder {
     <h2>5) Parte 1 — Crear consulta-service a partir del proyecto base</h2>
 
     <h3>5.1 Crear la carpeta raíz de microservicios</h3>
-    <p>Cree una carpeta nueva llamada:</p>
     <pre><code>microservicios-demoacademico</code></pre>
 
     <h3>5.2 Copiar el proyecto base</h3>
@@ -1087,16 +1015,16 @@ public class DataSeeder {
     <pre><code>consulta-service</code></pre>
 
     <h3>5.3 Ajustar el archivo pom.xml de consulta-service</h3>
-    <p>En <code>consulta-service/pom.xml</code> modifique estas líneas:</p>
+    <p>En <code>consulta-service/pom.xml</code>, cambie estas líneas:</p>
 
     <pre><code>&lt;artifactId&gt;consulta-service&lt;/artifactId&gt;
 &lt;name&gt;consulta-service&lt;/name&gt;
 &lt;description&gt;Microservicio de consulta&lt;/description&gt;</code></pre>
 
-    <h3>5.4 Agregar OpenFeign al pom.xml</h3>
-    <p>En el mismo archivo <code>pom.xml</code> agregue lo siguiente.</p>
+    <h3>5.4 Agregar OpenFeign y Spring Security al pom.xml</h3>
 
-    <h4>Dependency management</h4>
+    <p>Agregue este bloque antes de <code>&lt;dependencies&gt;</code>:</p>
+
     <pre><code>&lt;dependencyManagement&gt;
     &lt;dependencies&gt;
         &lt;dependency&gt;
@@ -1109,13 +1037,23 @@ public class DataSeeder {
     &lt;/dependencies&gt;
 &lt;/dependencyManagement&gt;</code></pre>
 
-    <h4>Dependencia Feign</h4>
+    <p>Y dentro de <code>&lt;dependencies&gt;</code> agregue:</p>
+
     <pre><code>&lt;dependency&gt;
     &lt;groupId&gt;org.springframework.cloud&lt;/groupId&gt;
     &lt;artifactId&gt;spring-cloud-starter-openfeign&lt;/artifactId&gt;
+&lt;/dependency&gt;
+
+&lt;dependency&gt;
+    &lt;groupId&gt;org.springframework.boot&lt;/groupId&gt;
+    &lt;artifactId&gt;spring-boot-starter-security&lt;/artifactId&gt;
 &lt;/dependency&gt;</code></pre>
 
-    <p>Continúe cuando el IDE haya actualizado correctamente las dependencias.</p>
+    <div class="note">
+      <strong>Buena práctica:</strong>
+      OpenFeign permite invocar otro microservicio de manera declarativa y más legible que una llamada HTTP armada manualmente.
+      Spring Security permite incorporar mecanismos transversales de protección del acceso.
+    </div>
 
     <h3>5.5 Cambiar el archivo application.yaml</h3>
     <p>Archivo: <code>consulta-service/src/main/resources/application.yaml</code></p>
@@ -1162,6 +1100,18 @@ app:
     enabled: true
     cantidad: 500</code></pre>
 
+    <div class="warn">
+      <strong>Importante sobre puertos:</strong>
+      Si se cambia el puerto de <code>auth-service</code> o de <code>consulta-service</code>, ese cambio debe reflejarse también en:
+      <ul>
+        <li>el archivo <code>application.yml</code> del servicio correspondiente,</li>
+        <li>la propiedad <code>services.auth.url</code> en <code>consulta-service</code>,</li>
+        <li>el archivo <code>docker-compose.yml</code>,</li>
+        <li>las URLs usadas en Swagger y en las pruebas manuales.</li>
+      </ul>
+      Si alguno de esos valores queda desalineado, la validación del token puede fallar aunque el JWT esté correcto.
+    </div>
+
     <h3>5.6 Habilitar Feign en la clase principal</h3>
     <p>Archivo: <code>consulta-service/src/main/java/co/edu/demoacademico/DemoAcademicoApplication.java</code></p>
 
@@ -1180,8 +1130,11 @@ public class DemoAcademicoApplication {
     }
 }</code></pre>
 
+    <h3>5.7 Compilar consulta-service</h3>
+    <pre><code>mvn clean package -DskipTests</code></pre>
+
     <div class="ok">
-      Continúe con la parte 2 cuando <code>consulta-service</code> ya compile sin errores.
+      Continúe con la parte 2 cuando <code>consulta-service</code> compile sin errores.
     </div>
   </section>
 
@@ -1190,13 +1143,7 @@ public class DemoAcademicoApplication {
   <section id="parte2">
     <h2>6) Parte 2 — Crear auth-service con H2, BCrypt y JWT</h2>
 
-    <p>
-      En esta parte se creará el microservicio de autenticación.
-      Este servicio almacenará usuarios en H2 y validará contraseñas cifradas con BCrypt.
-    </p>
-
     <h3>6.1 Crear el proyecto auth-service</h3>
-
     <table>
       <tr><th>Campo</th><th>Valor</th></tr>
       <tr><td>Group</td><td><code>co.edu</code></td></tr>
@@ -1311,45 +1258,8 @@ public class DemoAcademicoApplication {
     &lt;/build&gt;
 &lt;/project&gt;</code></pre>
 
-    <h3>6.3 Crear la estructura de paquetes del servicio de autenticación</h3>
-
-    <pre><code>co/edu/authservice
-├── AuthServiceApplication.java
-├── config
-│   ├── AuthDataSeeder.java
-│   └── SecurityConfig.java
-├── controller
-│   └── AuthController.java
-├── dto
-│   ├── LoginRequest.java
-│   └── LoginResponse.java
-├── model
-│   └── AuthUser.java
-├── repository
-│   └── AuthUserRepository.java
-├── security
-│   └── JwtUtil.java
-└── service
-    └── AuthService.java</code></pre>
-
-    <h3>6.4 Crear la clase principal</h3>
-    <p>Archivo: <code>AuthServiceApplication.java</code></p>
-
-    <pre><code>package co.edu.authservice;
-
-import org.springframework.boot.SpringApplication;
-import org.springframework.boot.autoconfigure.SpringBootApplication;
-
-@SpringBootApplication
-public class AuthServiceApplication {
-
-    public static void main(String[] args) {
-        SpringApplication.run(AuthServiceApplication.class, args);
-    }
-}</code></pre>
-
-    <h3>6.5 Crear el archivo application.yml</h3>
-    <p>Archivo: <code>src/main/resources/application.yml</code></p>
+    <h3>6.3 Crear el archivo application.yml</h3>
+    <p>Archivo: <code>auth-service/src/main/resources/application.yml</code></p>
 
     <pre><code>server:
   port: 8081
@@ -1384,8 +1294,45 @@ springdoc:
     enabled: true
     path: /swagger-ui.html</code></pre>
 
+    <h3>6.4 Crear la estructura base del servicio</h3>
+    <pre><code>co/edu/authservice
+├── AuthServiceApplication.java
+├── config
+│   ├── AuthDataSeeder.java
+│   └── SecurityConfig.java
+├── controller
+│   └── AuthController.java
+├── dto
+│   ├── LoginRequest.java
+│   └── LoginResponse.java
+├── model
+│   └── AuthUser.java
+├── repository
+│   └── AuthUserRepository.java
+├── security
+│   ├── JwtUtil.java
+│   └── TokenUtils.java
+└── service
+    └── AuthService.java</code></pre>
+
+    <h3>6.5 Crear la clase principal</h3>
+    <p>Archivo: <code>auth-service/src/main/java/co/edu/authservice/AuthServiceApplication.java</code></p>
+
+    <pre><code>package co.edu.authservice;
+
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+
+@SpringBootApplication
+public class AuthServiceApplication {
+
+    public static void main(String[] args) {
+        SpringApplication.run(AuthServiceApplication.class, args);
+    }
+}</code></pre>
+
     <h3>6.6 Crear la entidad AuthUser</h3>
-    <p>Archivo: <code>model/AuthUser.java</code></p>
+    <p>Archivo: <code>auth-service/src/main/java/co/edu/authservice/model/AuthUser.java</code></p>
 
     <pre><code>package co.edu.authservice.model;
 
@@ -1419,41 +1366,20 @@ public class AuthUser {
         this.role = role;
     }
 
-    public Long getId() {
-        return id;
-    }
+    public Long getId() { return id; }
 
-    public String getUsername() {
-        return username;
-    }
+    public String getUsername() { return username; }
+    public void setUsername(String username) { this.username = username; }
 
-    public String getPasswordHash() {
-        return passwordHash;
-    }
+    public String getPasswordHash() { return passwordHash; }
+    public void setPasswordHash(String passwordHash) { this.passwordHash = passwordHash; }
 
-    public String getRole() {
-        return role;
-    }
-
-    public void setId(Long id) {
-        this.id = id;
-    }
-
-    public void setUsername(String username) {
-        this.username = username;
-    }
-
-    public void setPasswordHash(String passwordHash) {
-        this.passwordHash = passwordHash;
-    }
-
-    public void setRole(String role) {
-        this.role = role;
-    }
+    public String getRole() { return role; }
+    public void setRole(String role) { this.role = role; }
 }</code></pre>
 
     <h3>6.7 Crear el repositorio de usuarios</h3>
-    <p>Archivo: <code>repository/AuthUserRepository.java</code></p>
+    <p>Archivo: <code>auth-service/src/main/java/co/edu/authservice/repository/AuthUserRepository.java</code></p>
 
     <pre><code>package co.edu.authservice.repository;
 
@@ -1468,7 +1394,7 @@ public interface AuthUserRepository extends JpaRepository&lt;AuthUser, Long&gt; 
 }</code></pre>
 
     <h3>6.8 Crear LoginRequest</h3>
-    <p>Archivo: <code>dto/LoginRequest.java</code></p>
+    <p>Archivo: <code>auth-service/src/main/java/co/edu/authservice/dto/LoginRequest.java</code></p>
 
     <pre><code>package co.edu.authservice.dto;
 
@@ -1482,25 +1408,15 @@ public class LoginRequest {
     @NotBlank(message = "El password es obligatorio")
     private String password;
 
-    public String getUsername() {
-        return username;
-    }
+    public String getUsername() { return username; }
+    public void setUsername(String username) { this.username = username; }
 
-    public void setUsername(String username) {
-        this.username = username;
-    }
-
-    public String getPassword() {
-        return password;
-    }
-
-    public void setPassword(String password) {
-        this.password = password;
-    }
+    public String getPassword() { return password; }
+    public void setPassword(String password) { this.password = password; }
 }</code></pre>
 
     <h3>6.9 Crear LoginResponse</h3>
-    <p>Archivo: <code>dto/LoginResponse.java</code></p>
+    <p>Archivo: <code>auth-service/src/main/java/co/edu/authservice/dto/LoginResponse.java</code></p>
 
     <pre><code>package co.edu.authservice.dto;
 
@@ -1513,129 +1429,37 @@ public class LoginResponse {
         this.token = token;
     }
 
-    public String getToken() {
-        return token;
+    public String getToken() { return token; }
+    public String getType() { return type; }
+}</code></pre>
+
+    <h3>6.10 Crear TokenUtils</h3>
+    <p>Archivo: <code>auth-service/src/main/java/co/edu/authservice/security/TokenUtils.java</code></p>
+
+    <pre><code>package co.edu.authservice.security;
+
+public final class TokenUtils {
+
+    private TokenUtils() {
     }
 
-    public String getType() {
-        return type;
+    public static String normalize(String rawToken) {
+        if (rawToken == null) {
+            return null;
+        }
+
+        String token = rawToken.trim();
+
+        while (token.regionMatches(true, 0, "Bearer ", 0, 7)) {
+            token = token.substring(7).trim();
+        }
+
+        return token.isBlank() ? null : token;
     }
 }</code></pre>
 
-    <h3>6.10 Crear la configuración de seguridad</h3>
-    <p>Archivo: <code>config/SecurityConfig.java</code></p>
-
-    <pre><code>package co.edu.authservice.config;
-
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
-import org.springframework.security.config.Customizer;
-import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
-import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.security.web.SecurityFilterChain;
-
-@Configuration
-public class SecurityConfig {
-
-    @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-        http
-            .csrf(csrf -> csrf.disable())
-            .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/auth/**", "/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**", "/h2-console/**").permitAll()
-                .anyRequest().authenticated()
-            )
-            .headers(headers -> headers.frameOptions(frame -> frame.disable()))
-            .httpBasic(Customizer.withDefaults());
-
-        return http.build();
-    }
-
-    @Bean
-    public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder();
-    }
-}</code></pre>
-
-    <h3>6.11 Crear el seeder de usuarios</h3>
-    <p>Archivo: <code>config/AuthDataSeeder.java</code></p>
-
-    <pre><code>package co.edu.authservice.config;
-
-import co.edu.authservice.model.AuthUser;
-import co.edu.authservice.repository.AuthUserRepository;
-import org.springframework.boot.CommandLineRunner;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
-import org.springframework.security.crypto.password.PasswordEncoder;
-
-@Configuration
-public class AuthDataSeeder {
-
-    @Bean
-    CommandLineRunner seedUsers(AuthUserRepository repository, PasswordEncoder passwordEncoder) {
-        return args -> {
-            if (repository.count() > 0) {
-                return;
-            }
-
-            repository.save(new AuthUser(
-                    "admin",
-                    passwordEncoder.encode("Admin2026*"),
-                    "ADMIN"
-            ));
-
-            repository.save(new AuthUser(
-                    "docente",
-                    passwordEncoder.encode("Docente2026*"),
-                    "DOCENTE"
-            ));
-
-            repository.save(new AuthUser(
-                    "estudiante1",
-                    passwordEncoder.encode("Estu2026*"),
-                    "ESTUDIANTE"
-            ));
-        };
-    }
-}</code></pre>
-
-    <h3>6.12 Crear el servicio de autenticación</h3>
-    <p>Archivo: <code>service/AuthService.java</code></p>
-
-    <pre><code>package co.edu.authservice.service;
-
-import co.edu.authservice.model.AuthUser;
-import co.edu.authservice.repository.AuthUserRepository;
-import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.stereotype.Service;
-
-@Service
-public class AuthService {
-
-    private final AuthUserRepository authUserRepository;
-    private final PasswordEncoder passwordEncoder;
-
-    public AuthService(AuthUserRepository authUserRepository,
-                       PasswordEncoder passwordEncoder) {
-        this.authUserRepository = authUserRepository;
-        this.passwordEncoder = passwordEncoder;
-    }
-
-    public boolean authenticate(String username, String password) {
-        return authUserRepository.findByUsername(username)
-                .map(user -> passwordEncoder.matches(password, user.getPasswordHash()))
-                .orElse(false);
-    }
-
-    public AuthUser findByUsername(String username) {
-        return authUserRepository.findByUsername(username).orElse(null);
-    }
-}</code></pre>
-
-    <h3>6.13 Crear la utilidad JWT</h3>
-    <p>Archivo: <code>security/JwtUtil.java</code></p>
+    <h3>6.11 Crear JwtUtil</h3>
+    <p>Archivo: <code>auth-service/src/main/java/co/edu/authservice/security/JwtUtil.java</code></p>
 
     <pre><code>package co.edu.authservice.security;
 
@@ -1682,19 +1506,27 @@ public class JwtUtil {
                 .compact();
     }
 
-    public boolean validateToken(String token) {
+    public boolean validateToken(String rawToken) {
         try {
+            String token = TokenUtils.normalize(rawToken);
+            if (token == null) {
+                return false;
+            }
+
             Jwts.parserBuilder()
                     .setSigningKey(getSigningKey())
                     .build()
                     .parseClaimsJws(token);
+
             return true;
         } catch (JwtException | IllegalArgumentException e) {
             return false;
         }
     }
 
-    public String getUsername(String token) {
+    public String getUsername(String rawToken) {
+        String token = TokenUtils.normalize(rawToken);
+
         Claims claims = Jwts.parserBuilder()
                 .setSigningKey(getSigningKey())
                 .build()
@@ -1704,7 +1536,9 @@ public class JwtUtil {
         return claims.getSubject();
     }
 
-    public String getRole(String token) {
+    public String getRole(String rawToken) {
+        String token = TokenUtils.normalize(rawToken);
+
         Claims claims = Jwts.parserBuilder()
                 .setSigningKey(getSigningKey())
                 .build()
@@ -1716,8 +1550,125 @@ public class JwtUtil {
     }
 }</code></pre>
 
-    <h3>6.14 Crear el controlador de autenticación</h3>
-    <p>Archivo: <code>controller/AuthController.java</code></p>
+    <div class="note">
+      <strong>Buena práctica:</strong>
+      usar JWT permite representar el acceso con un token compacto y verificable, evitando reenviar usuario y contraseña en cada petición.
+    </div>
+
+    <h3>6.12 Crear el servicio de autenticación</h3>
+    <p>Archivo: <code>auth-service/src/main/java/co/edu/authservice/service/AuthService.java</code></p>
+
+    <pre><code>package co.edu.authservice.service;
+
+import co.edu.authservice.model.AuthUser;
+import co.edu.authservice.repository.AuthUserRepository;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
+
+@Service
+public class AuthService {
+
+    private final AuthUserRepository authUserRepository;
+    private final PasswordEncoder passwordEncoder;
+
+    public AuthService(AuthUserRepository authUserRepository,
+                       PasswordEncoder passwordEncoder) {
+        this.authUserRepository = authUserRepository;
+        this.passwordEncoder = passwordEncoder;
+    }
+
+    public boolean authenticate(String username, String password) {
+        return authUserRepository.findByUsername(username)
+                .map(user -> passwordEncoder.matches(password, user.getPasswordHash()))
+                .orElse(false);
+    }
+
+    public AuthUser findByUsername(String username) {
+        return authUserRepository.findByUsername(username).orElse(null);
+    }
+}</code></pre>
+
+    <h3>6.13 Crear la configuración de seguridad</h3>
+    <p>Archivo: <code>auth-service/src/main/java/co/edu/authservice/config/SecurityConfig.java</code></p>
+
+    <pre><code>package co.edu.authservice.config;
+
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.security.config.Customizer;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.web.SecurityFilterChain;
+
+@Configuration
+public class SecurityConfig {
+
+    @Bean
+    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+        http
+            .csrf(csrf -> csrf.disable())
+            .authorizeHttpRequests(auth -> auth
+                .requestMatchers("/auth/**", "/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**", "/h2-console/**").permitAll()
+                .anyRequest().authenticated()
+            )
+            .headers(headers -> headers.frameOptions(frame -> frame.disable()))
+            .httpBasic(Customizer.withDefaults());
+
+        return http.build();
+    }
+
+    @Bean
+    public PasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder();
+    }
+}</code></pre>
+
+    <h3>6.14 Crear el seeder de usuarios</h3>
+    <p>Archivo: <code>auth-service/src/main/java/co/edu/authservice/config/AuthDataSeeder.java</code></p>
+
+    <pre><code>package co.edu.authservice.config;
+
+import co.edu.authservice.model.AuthUser;
+import co.edu.authservice.repository.AuthUserRepository;
+import org.springframework.boot.CommandLineRunner;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.security.crypto.password.PasswordEncoder;
+
+@Configuration
+public class AuthDataSeeder {
+
+    @Bean
+    CommandLineRunner seedUsers(AuthUserRepository repository, PasswordEncoder passwordEncoder) {
+        return args -> {
+            if (repository.count() > 0) {
+                return;
+            }
+
+            repository.save(new AuthUser(
+                    "admin",
+                    passwordEncoder.encode("Admin2026*"),
+                    "ADMIN"
+            ));
+
+            repository.save(new AuthUser(
+                    "docente",
+                    passwordEncoder.encode("Docente2026*"),
+                    "DOCENTE"
+            ));
+
+            repository.save(new AuthUser(
+                    "estudiante1",
+                    passwordEncoder.encode("Estu2026*"),
+                    "ESTUDIANTE"
+            ));
+        };
+    }
+}</code></pre>
+
+    <h3>6.15 Crear el controlador de autenticación</h3>
+    <p>Archivo: <code>auth-service/src/main/java/co/edu/authservice/controller/AuthController.java</code></p>
 
     <pre><code>package co.edu.authservice.controller;
 
@@ -1725,6 +1676,7 @@ import co.edu.authservice.dto.LoginRequest;
 import co.edu.authservice.dto.LoginResponse;
 import co.edu.authservice.model.AuthUser;
 import co.edu.authservice.security.JwtUtil;
+import co.edu.authservice.security.TokenUtils;
 import co.edu.authservice.service.AuthService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -1760,13 +1712,22 @@ public class AuthController {
 
     @GetMapping("/validate")
     public ResponseEntity&lt;?&gt; validate(@RequestParam String token) {
+        String normalizedToken = TokenUtils.normalize(token);
+
         Map&lt;String, Object&gt; response = new HashMap&lt;&gt;();
-        boolean valid = jwtUtil.validateToken(token);
+
+        if (normalizedToken == null) {
+            response.put("valid", false);
+            response.put("message", "Token no enviado o formato inválido");
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(response);
+        }
+
+        boolean valid = jwtUtil.validateToken(normalizedToken);
         response.put("valid", valid);
 
         if (valid) {
-            response.put("username", jwtUtil.getUsername(token));
-            response.put("role", jwtUtil.getRole(token));
+            response.put("username", jwtUtil.getUsername(normalizedToken));
+            response.put("role", jwtUtil.getRole(normalizedToken));
             return ResponseEntity.ok(response);
         }
 
@@ -1775,16 +1736,11 @@ public class AuthController {
     }
 }</code></pre>
 
-    <h3>6.15 Usuarios de prueba que se crearán automáticamente</h3>
-    <table>
-      <tr><th>Usuario</th><th>Contraseña</th><th>Rol</th></tr>
-      <tr><td>admin</td><td>Admin2026*</td><td>ADMIN</td></tr>
-      <tr><td>docente</td><td>Docente2026*</td><td>DOCENTE</td></tr>
-      <tr><td>estudiante1</td><td>Estu2026*</td><td>ESTUDIANTE</td></tr>
-    </table>
+    <h3>6.16 Compilar auth-service</h3>
+    <pre><code>mvn clean package -DskipTests</code></pre>
 
     <div class="ok">
-      Continúe con la parte 3 cuando <code>auth-service</code> compile correctamente y los archivos de estructura estén completos.
+      Continúe con la parte 3 cuando <code>auth-service</code> compile sin errores.
     </div>
   </section>
 
@@ -1805,45 +1761,25 @@ public class TokenValidationResponse {
     private String role;
     private String message;
 
-    public Boolean getValid() {
-        return valid;
-    }
+    public Boolean getValid() { return valid; }
+    public void setValid(Boolean valid) { this.valid = valid; }
 
-    public void setValid(Boolean valid) {
-        this.valid = valid;
-    }
+    public String getUsername() { return username; }
+    public void setUsername(String username) { this.username = username; }
 
-    public String getUsername() {
-        return username;
-    }
+    public String getRole() { return role; }
+    public void setRole(String role) { this.role = role; }
 
-    public void setUsername(String username) {
-        this.username = username;
-    }
-
-    public String getRole() {
-        return role;
-    }
-
-    public void setRole(String role) {
-        this.role = role;
-    }
-
-    public String getMessage() {
-        return message;
-    }
-
-    public void setMessage(String message) {
-        this.message = message;
-    }
+    public String getMessage() { return message; }
+    public void setMessage(String message) { this.message = message; }
 }</code></pre>
 
-    <h3>7.2 Crear el paquete client en consulta-service</h3>
+    <h3>7.2 Crear el paquete client</h3>
     <p>Cree la carpeta:</p>
     <pre><code>consulta-service/src/main/java/co/edu/demoacademico/client</code></pre>
 
     <h3>7.3 Crear AuthFeignClient</h3>
-    <p>Archivo: <code>client/AuthFeignClient.java</code></p>
+    <p>Archivo: <code>consulta-service/src/main/java/co/edu/demoacademico/client/AuthFeignClient.java</code></p>
 
     <pre><code>package co.edu.demoacademico.client;
 
@@ -1859,13 +1795,39 @@ public interface AuthFeignClient {
     TokenValidationResponse validate(@RequestParam("token") String token);
 }</code></pre>
 
-    <h3>7.4 Crear TokenValidationService</h3>
-    <p>Archivo: <code>service/TokenValidationService.java</code></p>
+    <h3>7.4 Crear TokenUtils en consulta-service</h3>
+    <p>Archivo: <code>consulta-service/src/main/java/co/edu/demoacademico/security/TokenUtils.java</code></p>
+
+    <pre><code>package co.edu.demoacademico.security;
+
+public final class TokenUtils {
+
+    private TokenUtils() {
+    }
+
+    public static String normalize(String rawToken) {
+        if (rawToken == null) {
+            return null;
+        }
+
+        String token = rawToken.trim();
+
+        while (token.regionMatches(true, 0, "Bearer ", 0, 7)) {
+            token = token.substring(7).trim();
+        }
+
+        return token.isBlank() ? null : token;
+    }
+}</code></pre>
+
+    <h3>7.5 Crear TokenValidationService</h3>
+    <p>Archivo: <code>consulta-service/src/main/java/co/edu/demoacademico/service/TokenValidationService.java</code></p>
 
     <pre><code>package co.edu.demoacademico.service;
 
 import co.edu.demoacademico.client.AuthFeignClient;
 import co.edu.demoacademico.dto.TokenValidationResponse;
+import co.edu.demoacademico.security.TokenUtils;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -1877,39 +1839,210 @@ public class TokenValidationService {
         this.authFeignClient = authFeignClient;
     }
 
-    public boolean isValid(String token) {
+    public boolean isValid(String rawToken) {
         try {
+            String token = TokenUtils.normalize(rawToken);
+
+            if (token == null) {
+                return false;
+            }
+
             TokenValidationResponse response = authFeignClient.validate(token);
-            return Boolean.TRUE.equals(response.getValid());
+            return response != null && Boolean.TRUE.equals(response.getValid());
         } catch (Exception e) {
             return false;
         }
     }
 }</code></pre>
 
-    <div class="warn">
-      La integración entre microservicios debe realizarse con <strong>OpenFeign</strong>.
-      No se debe implementar con <code>RestTemplate</code>.
-    </div>
+    <h3>7.6 Verificación previa de conectividad entre servicios</h3>
+    <p>
+      Antes de probar el endpoint protegido, confirme que <code>consulta-service</code> está apuntando al puerto correcto de <code>auth-service</code>.
+    </p>
 
-    <div class="ok">
-      Continúe con la parte 4 cuando <code>consulta-service</code> vuelva a compilar correctamente con los nuevos archivos.
+    <p>Revise esta propiedad en <code>consulta-service</code>:</p>
+    <pre><code>services:
+  auth:
+    url: http://localhost:8081</code></pre>
+
+    <p>
+      Si <code>auth-service</code> fue configurado en otro puerto, actualice este valor antes de continuar.
+    </p>
+
+    <div class="note">
+      <strong>Buena práctica:</strong>
+      validar primero la comunicación entre servicios evita asumir erróneamente que un fallo de conexión es un fallo del JWT.
     </div>
   </section>
 
   <hr />
 
   <section id="parte4">
-    <h2>8) Parte 4 — Proteger el endpoint de estudiantes</h2>
+    <h2>8) Parte 4 — Implementar seguridad del flujo de acceso en consulta-service</h2>
 
     <p>
-      En esta parte se protegerá el endpoint que lista estudiantes.
-      El flujo será el siguiente:
-      el cliente enviará un token, <code>consulta-service</code> lo leerá, lo enviará a <code>auth-service</code> y,
-      si el token es válido, responderá la información solicitada.
+      En esta parte se configurará el tratamiento del token en <code>consulta-service</code>.
+      Swagger se preparará para enviar el token de forma adecuada, el formato del token se normalizará
+      y la petición será interceptada antes de acceder al recurso protegido.
     </p>
 
-    <h3>8.1 Reemplazar EstudianteController en consulta-service</h3>
+    <h3>8.1 Crear OpenApiConfig</h3>
+    <p>Archivo: <code>consulta-service/src/main/java/co/edu/demoacademico/config/OpenApiConfig.java</code></p>
+
+    <pre><code>package co.edu.demoacademico.config;
+
+import io.swagger.v3.oas.models.Components;
+import io.swagger.v3.oas.models.OpenAPI;
+import io.swagger.v3.oas.models.security.SecurityRequirement;
+import io.swagger.v3.oas.models.security.SecurityScheme;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+
+@Configuration
+public class OpenApiConfig {
+
+    @Bean
+    public OpenAPI customOpenAPI() {
+        String schemeName = "bearerAuth";
+
+        return new OpenAPI()
+                .components(new Components()
+                        .addSecuritySchemes(schemeName,
+                                new SecurityScheme()
+                                        .type(SecurityScheme.Type.HTTP)
+                                        .scheme("bearer")
+                                        .bearerFormat("JWT")))
+                .addSecurityItem(new SecurityRequirement().addList(schemeName));
+    }
+}</code></pre>
+
+    <div class="note">
+      <strong>Buena práctica:</strong>
+      documentar la seguridad en Swagger evita que cada endpoint tenga que pedir manualmente la cabecera
+      y reduce errores de formato al probar el sistema.
+    </div>
+
+    <h3>8.2 Crear JwtAuthenticationFilter</h3>
+    <p>Archivo: <code>consulta-service/src/main/java/co/edu/demoacademico/security/JwtAuthenticationFilter.java</code></p>
+
+    <pre><code>package co.edu.demoacademico.security;
+
+import co.edu.demoacademico.service.TokenValidationService;
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.stereotype.Component;
+import org.springframework.web.filter.OncePerRequestFilter;
+
+import java.io.IOException;
+
+@Component
+public class JwtAuthenticationFilter extends OncePerRequestFilter {
+
+    private final TokenValidationService tokenValidationService;
+
+    public JwtAuthenticationFilter(TokenValidationService tokenValidationService) {
+        this.tokenValidationService = tokenValidationService;
+    }
+
+    @Override
+    protected boolean shouldNotFilter(HttpServletRequest request) {
+        String path = request.getServletPath();
+        String method = request.getMethod();
+
+        return path.startsWith("/swagger-ui")
+                || path.startsWith("/v3/api-docs")
+                || path.startsWith("/h2-console")
+                || ("POST".equalsIgnoreCase(method) && "/api/estudiantes".equals(path));
+    }
+
+    @Override
+    protected void doFilterInternal(HttpServletRequest request,
+                                    HttpServletResponse response,
+                                    FilterChain filterChain) throws ServletException, IOException {
+
+        String path = request.getServletPath();
+
+        if (path.startsWith("/api/estudiantes")) {
+            String authHeader = request.getHeader("Authorization");
+            String token = TokenUtils.normalize(authHeader);
+
+            if (token == null) {
+                unauthorized(response, "Token no enviado o formato inválido");
+                return;
+            }
+
+            if (!tokenValidationService.isValid(token)) {
+                unauthorized(response, "Token inválido o expirado");
+                return;
+            }
+        }
+
+        filterChain.doFilter(request, response);
+    }
+
+    private void unauthorized(HttpServletResponse response, String message) throws IOException {
+        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+        response.setContentType("text/plain;charset=UTF-8");
+        response.getWriter().write(message);
+    }
+}</code></pre>
+
+    <div class="note">
+      <strong>Buena práctica:</strong>
+      interceptar el acceso antes de llegar al recurso protegido permite aplicar la verificación del token de manera uniforme.
+      Así se evita repetir la misma validación en múltiples endpoints.
+    </div>
+
+    <h3>8.3 Crear SecurityConfig en consulta-service</h3>
+    <p>Archivo: <code>consulta-service/src/main/java/co/edu/demoacademico/security/SecurityConfig.java</code></p>
+
+    <pre><code>package co.edu.demoacademico.security;
+
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.security.config.Customizer;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+
+@Configuration
+public class SecurityConfig {
+
+    private final JwtAuthenticationFilter jwtAuthenticationFilter;
+
+    public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter) {
+        this.jwtAuthenticationFilter = jwtAuthenticationFilter;
+    }
+
+    @Bean
+    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+        http
+            .csrf(csrf -> csrf.disable())
+            .authorizeHttpRequests(auth -> auth
+                .requestMatchers(
+                        "/swagger-ui/**",
+                        "/swagger-ui.html",
+                        "/v3/api-docs/**",
+                        "/h2-console/**"
+                ).permitAll()
+                .anyRequest().permitAll()
+            )
+            .headers(headers -> headers.frameOptions(frame -> frame.disable()))
+            .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
+            .httpBasic(Customizer.withDefaults());
+
+        return http.build();
+    }
+}</code></pre>
+
+    <h3>8.4 Ajustar EstudianteController</h3>
+    <p>
+      El endpoint de consulta de estudiantes se documentará con requerimiento de seguridad Bearer.
+      Debe quedar así:
+    </p>
+
     <p>Archivo: <code>consulta-service/src/main/java/co/edu/demoacademico/controller/EstudianteController.java</code></p>
 
     <pre><code>package co.edu.demoacademico.controller;
@@ -1920,26 +2053,23 @@ import co.edu.demoacademico.dto.EstudianteCreateDTO;
 import co.edu.demoacademico.dto.EstudianteDTO;
 import co.edu.demoacademico.dto.EstudianteUpdateDTO;
 import co.edu.demoacademico.handler.EstudianteHandler;
-import co.edu.demoacademico.service.TokenValidationService;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.validation.Valid;
 import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/estudiantes")
+@SecurityRequirement(name = "bearerAuth")
 public class EstudianteController {
 
     private final EstudianteHandler handler;
-    private final TokenValidationService tokenValidationService;
 
-    public EstudianteController(EstudianteHandler handler,
-                                TokenValidationService tokenValidationService) {
+    public EstudianteController(EstudianteHandler handler) {
         this.handler = handler;
-        this.tokenValidationService = tokenValidationService;
     }
 
     @PostMapping
@@ -1953,23 +2083,9 @@ public class EstudianteController {
     }
 
     @GetMapping
-    public ResponseEntity&lt;?&gt; listar(
-            @RequestHeader(value = "Authorization", required = false) String authHeader,
-            @ParameterObject Pageable pageable) {
-
-        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body("Token no enviado o formato inválido");
-        }
-
-        String token = authHeader.substring(7);
-
-        if (!tokenValidationService.isValid(token)) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body("Token inválido o expirado");
-        }
-
-        return ResponseBuilder.ok("OK", handler.listar(pageable));
+    public ResponseEntity&lt;ApiResponse&lt;Page&lt;EstudianteDTO&gt;&gt;&gt; listar(@ParameterObject Pageable pageable) {
+        Page&lt;EstudianteDTO&gt; resultado = handler.listar(pageable);
+        return ResponseBuilder.ok("OK", resultado);
     }
 
     @PutMapping("/{id}")
@@ -1987,26 +2103,15 @@ public class EstudianteController {
 }</code></pre>
 
     <div class="note">
-      En esta primera versión, solamente se protege <code>GET /api/estudiantes</code>.
-      Esto permite concentrarse en el flujo principal de validación del token.
+      <strong>Buena práctica:</strong>
+      documentar el requerimiento de seguridad en el endpoint ayuda a que Swagger muestre claramente que ese recurso requiere autorización.
     </div>
 
-    <h3>8.2 Validación local antes de Docker</h3>
-    <p>Antes de pasar a Docker, realice la validación local siguiendo este orden:</p>
-    <ol>
-      <li>ejecute <code>auth-service</code> en el puerto <code>8081</code>;</li>
-      <li>ejecute <code>consulta-service</code> en el puerto <code>8082</code>;</li>
-      <li>abra Swagger de <code>auth-service</code>;</li>
-      <li>realice login con uno de los usuarios sembrados;</li>
-      <li>copie el token devuelto;</li>
-      <li>abra Swagger de <code>consulta-service</code>;</li>
-      <li>llame <code>GET /api/estudiantes</code> con el header:
-        <pre><code>Authorization: Bearer TOKEN_AQUI</code></pre>
-      </li>
-    </ol>
+    <h3>8.5 Compilar consulta-service con la seguridad incorporada</h3>
+    <pre><code>mvn clean package -DskipTests</code></pre>
 
     <div class="ok">
-      Continúe con la parte 5 cuando la validación local ya funcione correctamente.
+      Continúe cuando <code>consulta-service</code> ya compile correctamente con estos ajustes.
     </div>
   </section>
 
@@ -2033,16 +2138,7 @@ COPY target/consulta-service-0.0.1-SNAPSHOT.jar app.jar
 EXPOSE 8082
 ENTRYPOINT ["java", "-jar", "app.jar"]</code></pre>
 
-    <h3>9.3 Verificar los nombres de los JAR generados</h3>
-    <p>Después de compilar ambos proyectos, verifique que existan estos archivos:</p>
-    <ul>
-      <li><code>auth-service/target/auth-service-0.0.1-SNAPSHOT.jar</code></li>
-      <li><code>consulta-service/target/consulta-service-0.0.1-SNAPSHOT.jar</code></li>
-    </ul>
-
-    <p>Si el nombre real es diferente, ajuste el valor del comando <code>COPY</code> en el Dockerfile.</p>
-
-    <h3>9.4 Crear docker-compose.yml en la raíz</h3>
+    <h3>9.3 Crear docker-compose.yml</h3>
     <p>Archivo: <code>microservicios-demoacademico/docker-compose.yml</code></p>
 
     <pre><code>version: '3.9'
@@ -2073,41 +2169,33 @@ networks:
     driver: bridge</code></pre>
 
     <div class="note">
-      Dentro de Docker ya no debe usarse <code>localhost</code> para la comunicación entre servicios.
-      Debe utilizarse el nombre del servicio definido en Compose:
+      <strong>Diferencia entre puerto interno y puerto externo:</strong><br/>
+      Una configuración como <code>"8091:8081"</code> significa:
+      <ul>
+        <li><code>8091</code>: puerto visible en la máquina local,</li>
+        <li><code>8081</code>: puerto interno dentro del contenedor.</li>
+      </ul>
+      Si <code>consulta-service</code> se comunica con <code>auth-service</code> dentro de Docker, debe usar el puerto interno:
       <code>http://auth-service:8081</code>.
     </div>
 
-    <h3>9.5 Compilar ambos proyectos antes de usar Docker</h3>
-    <p>Desde la carpeta de cada proyecto ejecute:</p>
+    <div class="note">
+      <strong>Buena práctica:</strong>
+      usar Docker Compose permite levantar la solución completa de forma repetible y reduce diferencias entre el entorno de un equipo y otro.
+    </div>
 
-    <pre><code>mvn clean package -DskipTests</code></pre>
+    <h3>9.4 Compilar y ejecutar</h3>
+    <pre><code>mvn clean package -DskipTests
+docker compose up --build</code></pre>
 
-    <h3>9.6 Levantar la solución completa</h3>
-    <p>Desde la carpeta raíz <code>microservicios-demoacademico</code>, ejecute:</p>
-
-    <pre><code>docker compose up --build</code></pre>
-
-    <h3>9.7 Verificar que ambos contenedores estén activos</h3>
-    <p>En otra terminal ejecute:</p>
-
+    <h3>9.5 Verificar que ambos contenedores estén activos</h3>
     <pre><code>docker ps</code></pre>
-
-    <p>Como resultado de la ejecución, deben existir dos contenedores activos:</p>
-    <ul>
-      <li><code>auth-service</code></li>
-      <li><code>consulta-service</code></li>
-    </ul>
   </section>
 
   <hr />
 
   <section id="pruebas">
     <h2>10) Pruebas obligatorias en Swagger</h2>
-
-    <p>
-      Una vez completada la implementación, ejecute y documente las siguientes pruebas funcionales.
-    </p>
 
     <h3>10.1 URLs que deben verificarse</h3>
     <ul>
@@ -2125,32 +2213,48 @@ networks:
       <tr><td>estudiante1</td><td>Estu2026*</td><td>ESTUDIANTE</td></tr>
     </table>
 
-    <h3>10.3 Guion mínimo obligatorio</h3>
-    <ol>
-      <li>Realizar un login exitoso con un usuario válido.</li>
-      <li>Realizar un login fallido con contraseña incorrecta.</li>
-      <li>Validar manualmente un token válido.</li>
-      <li>Consumir el endpoint protegido de estudiantes con un token válido.</li>
-      <li>Consumir el endpoint protegido sin token.</li>
-      <li>Consumir el endpoint protegido con un token inválido.</li>
-    </ol>
+    <h3>10.3 Consumo paso a paso en Swagger</h3>
 
-    <h3>10.4 Ejemplo de login exitoso</h3>
-    <p>En <code>POST /auth/login</code> puede usarse, por ejemplo:</p>
+    <div class="warn">
+      <strong>Orden obligatorio de la prueba:</strong>
+      <ol>
+        <li>Levantar <code>auth-service</code>.</li>
+        <li>Levantar <code>consulta-service</code>.</li>
+        <li>Probar <code>POST /auth/login</code> en Swagger de <code>auth-service</code>.</li>
+        <li>Copiar el token generado.</li>
+        <li>Usar el botón <strong>Authorize</strong> en Swagger de <code>consulta-service</code>.</li>
+        <li>Consumir el endpoint protegido <code>GET /api/estudiantes</code>.</li>
+      </ol>
+    </div>
+
+    <h4>10.3.1 Abrir Swagger de auth-service</h4>
+    <pre><code>http://localhost:8081/swagger-ui.html</code></pre>
+
+    <h4>10.3.2 Ejecutar el login</h4>
+    <p>Ubique <code>POST /auth/login</code>, pulse <strong>Try it out</strong> y envíe:</p>
 
     <pre><code>{
   "username": "admin",
   "password": "Admin2026*"
 }</code></pre>
 
-    <h3>10.5 Respuesta esperada del login exitoso</h3>
+    <h4>10.3.3 Copiar el token</h4>
+    <p>La respuesta será similar a:</p>
+
     <pre><code>{
-  "token": "eyJhbGciOiJIUzI1NiJ9....",
+  "token": "eyJhbGciOiJIUzI1NiJ9.eyJyb2xlIjoiQURNSU4iLCJzdWIiOiJhZG1pbiIsImlhdCI6MT...",
   "type": "Bearer"
 }</code></pre>
 
-    <h3>10.6 Ejemplo de validación del token</h3>
-    <p>En <code>GET /auth/validate?token=TOKEN_AQUI</code> debe obtenerse una respuesta similar a:</p>
+    <p>
+      Copie únicamente el valor del campo <code>token</code>.
+      No copie la palabra <code>token</code>, ni las llaves, ni el prefijo <code>Bearer</code>.
+    </p>
+
+    <h4>10.3.4 Validar manualmente el token</h4>
+    <p>En <code>GET /auth/validate</code> pegue solo el token como parámetro.</p>
+
+    <p>La respuesta esperada será similar a:</p>
 
     <pre><code>{
   "valid": true,
@@ -2158,25 +2262,105 @@ networks:
   "role": "ADMIN"
 }</code></pre>
 
-    <h3>10.7 Ejemplo de consumo del endpoint protegido</h3>
-    <p>En <code>GET /api/estudiantes?page=0&amp;size=5</code> debe enviarse el siguiente header:</p>
+    <h4>10.3.5 Abrir Swagger de consulta-service</h4>
+    <pre><code>http://localhost:8082/swagger-ui.html</code></pre>
 
-    <pre><code>Authorization: Bearer TOKEN_AQUI</code></pre>
+    <h4>10.3.6 Usar el botón Authorize</h4>
+    <ol>
+      <li>Ubique el botón <strong>Authorize</strong> en la parte superior de Swagger.</li>
+      <li>Haga clic allí.</li>
+      <li>Pegue <strong>solo el token</strong>, sin la palabra <code>Bearer</code>.</li>
+      <li>Haga clic en <strong>Authorize</strong>.</li>
+      <li>Cierre la ventana emergente.</li>
+    </ol>
 
-    <h3>10.8 Respuestas fallidas esperadas</h3>
-    <p>Sin token:</p>
+    <div class="note">
+      <strong>No debe escribirse esto:</strong>
+      <pre><code>Bearer eyJhbGciOiJIUzI1NiJ9...</code></pre>
+
+      <strong>Debe pegarse así:</strong>
+      <pre><code>eyJhbGciOiJIUzI1NiJ9...</code></pre>
+    </div>
+
+    <h4>10.3.7 Consumir GET /api/estudiantes</h4>
+    <ol>
+      <li>Despliegue el endpoint <code>GET /api/estudiantes</code>.</li>
+      <li>Pulse <strong>Try it out</strong>.</li>
+      <li>Complete, si lo desea, parámetros como <code>page</code> y <code>size</code>.</li>
+      <li>Pulse <strong>Execute</strong>.</li>
+    </ol>
+
+    <p>Swagger enviará automáticamente el header:</p>
+    <pre><code>Authorization: Bearer eyJhbGciOiJIUzI1NiJ9...</code></pre>
+
+    <p>La respuesta exitosa debería devolver una estructura similar a:</p>
+
+    <pre><code>{
+  "success": true,
+  "message": "OK",
+  "data": {
+    "content": [
+      {
+        "id": 1,
+        "nombre": "Juan",
+        "apellido": "Pérez",
+        "email": "estudiante0@demoacademico.edu",
+        "edad": 18
+      }
+    ]
+  }
+}</code></pre>
+
+    <h4>10.3.8 Errores frecuentes</h4>
+    <p>Si el token no se carga correctamente en Authorize, puede aparecer:</p>
+
     <pre><code>Token no enviado o formato inválido</code></pre>
 
-    <p>Con token inválido:</p>
+    <p>Si el token es incorrecto, incompleto o vencido, puede aparecer:</p>
+
     <pre><code>Token inválido o expirado</code></pre>
+
+    <div class="warn">
+      <strong>Si el token es correcto pero sigue apareciendo como inválido:</strong>
+      revise primero que <code>auth-service</code> y <code>consulta-service</code> estén ejecutándose en los puertos esperados.
+      Un cambio de puerto no reflejado en la configuración puede producir errores de validación aunque el JWT sea válido.
+    </div>
+
+    <div class="note">
+      <strong>Buena práctica:</strong>
+      probar el token primero en el servicio que lo emite y luego en el servicio que protege el recurso
+      ayuda a localizar mejor el origen de un problema.
+    </div>
+
+    <h3>10.4 Guion mínimo obligatorio</h3>
+    <ol>
+      <li>Realizar login exitoso con un usuario válido.</li>
+      <li>Realizar login fallido con contraseña incorrecta.</li>
+      <li>Validar manualmente un token válido.</li>
+      <li>Consumir <code>GET /api/estudiantes</code> con un token válido.</li>
+      <li>Consumir <code>GET /api/estudiantes</code> sin autorizar en Swagger.</li>
+      <li>Consumir <code>GET /api/estudiantes</code> con token inválido.</li>
+    </ol>
+  </section>
+
+  <hr />
+
+  <section id="diagnostico">
+    <h2>11) Diagnóstico rápido de fallos</h2>
+
+    <ul>
+      <li>Si <code>/auth/login</code> funciona pero <code>/auth/validate</code> falla, revise el token copiado.</li>
+      <li>Si <code>/auth/validate</code> funciona pero <code>/api/estudiantes</code> falla, revise la URL y el puerto configurado en <code>services.auth.url</code>.</li>
+      <li>Si en Docker falla pero local funciona, revise <code>docker-compose.yml</code> y recuerde usar el nombre del servicio en vez de <code>localhost</code>.</li>
+      <li>Si Swagger no autoriza correctamente, cierre la autorización previa, vuelva a hacer login y pegue solo el token en <strong>Authorize</strong>.</li>
+      <li>Si cambió puertos manualmente, verifique que los cambios estén reflejados en todos los archivos de configuración relacionados.</li>
+    </ul>
   </section>
 
   <hr />
 
   <section id="entregable">
-    <h2>11) Entregable</h2>
-
-    <p>Como resultado del laboratorio se debe entregar:</p>
+    <h2>12) Entregable</h2>
 
     <ul>
       <li>el proyecto base correctamente construido;</li>
@@ -2190,7 +2374,8 @@ networks:
           <li>cómo ejecutar los servicios localmente;</li>
           <li>cómo levantar la solución con Docker Compose;</li>
           <li>las URLs de Swagger y H2 Console;</li>
-          <li>los usuarios de prueba.</li>
+          <li>los usuarios de prueba;</li>
+          <li>el flujo correcto de uso del botón <code>Authorize</code>.</li>
         </ul>
       </li>
     </ul>
@@ -2199,9 +2384,9 @@ networks:
   <hr />
 
   <section id="checklist">
-    <h2>12) Checklist final</h2>
+    <h2>13) Checklist final</h2>
 
-    <h3>12.1 Proyecto base</h3>
+    <h3>13.1 Proyecto base</h3>
     <ul>
       <li>Existe la arquitectura <code>controller-handler-service-repository-model</code>.</li>
       <li>Existen los DTOs de creación, actualización y salida.</li>
@@ -2212,41 +2397,43 @@ networks:
       <li>El CRUD de estudiantes funciona.</li>
     </ul>
 
-    <h3>12.2 auth-service</h3>
+    <h3>13.2 auth-service</h3>
     <ul>
       <li>Existe entidad <code>AuthUser</code>.</li>
       <li>Existe <code>AuthUserRepository</code>.</li>
       <li>Existe <code>PasswordEncoder</code> con BCrypt.</li>
       <li>Existe <code>AuthDataSeeder</code>.</li>
       <li>Existe <code>JwtUtil</code>.</li>
+      <li>Existe <code>TokenUtils</code>.</li>
       <li><code>/auth/login</code> funciona.</li>
       <li><code>/auth/validate</code> funciona.</li>
     </ul>
 
-    <h3>12.3 consulta-service</h3>
+    <h3>13.3 consulta-service</h3>
     <ul>
       <li>OpenFeign está configurado.</li>
       <li>Existe <code>AuthFeignClient</code>.</li>
       <li>Existe <code>TokenValidationService</code>.</li>
-      <li><code>GET /api/estudiantes</code> exige token.</li>
+      <li>Existe <code>OpenApiConfig</code>.</li>
+      <li>Existe <code>TokenUtils</code>.</li>
+      <li>Existe <code>JwtAuthenticationFilter</code>.</li>
+      <li>Existe <code>SecurityConfig</code>.</li>
+      <li><code>GET /api/estudiantes</code> exige token válido.</li>
     </ul>
 
-    <h3>12.4 Docker</h3>
+    <h3>13.4 Swagger</h3>
+    <ul>
+      <li>El botón <code>Authorize</code> aparece en Swagger.</li>
+      <li>El token se pega sin el prefijo <code>Bearer</code>.</li>
+      <li>El endpoint protegido responde correctamente después de autorizar.</li>
+    </ul>
+
+    <h3>13.5 Docker</h3>
     <ul>
       <li>Ambos proyectos compilan.</li>
       <li>Ambos generan su JAR.</li>
       <li>Ambos tienen Dockerfile.</li>
       <li>Docker Compose levanta ambos servicios.</li>
-    </ul>
-
-    <h3>12.5 Pruebas</h3>
-    <ul>
-      <li>Login exitoso probado.</li>
-      <li>Login fallido probado.</li>
-      <li>Validación del token probada.</li>
-      <li>Consulta con token válida probada.</li>
-      <li>Consulta sin token probada.</li>
-      <li>Consulta con token inválido probada.</li>
     </ul>
   </section>
 
@@ -2254,7 +2441,7 @@ networks:
 
   <p class="small">
     Ingeniería de Software III — Lab 04.<br/>
-    Guía completa: construcción desde cero de un proyecto base y evolución a microservicios con JWT, H2, Swagger, OpenFeign y Docker.
+    Guía definitiva completa: construcción desde cero de un proyecto base y evolución a microservicios con JWT, H2, Swagger, OpenFeign, filtro de seguridad y Docker.
   </p>
 
 </main>
