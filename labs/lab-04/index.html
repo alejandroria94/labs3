@@ -2,24 +2,2262 @@
 <html lang="es">
 <head>
   <meta charset="utf-8" />
-  <title>Lab XX</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Lab 04</title>
 
   <style>
-    body { font-family: Arial, sans-serif; margin: 40px; max-width: 1000px; }
-    h1, h2 { color: #1f3c88; }
-    pre { background: #f4f4f4; padding: 15px; border-radius: 8px; overflow-x: auto; }
-    a { color: #1f3c88; text-decoration: none; }
+    body { font-family: Arial, Helvetica, sans-serif; margin: 0; background: #ffffff; color: #111; line-height: 1.5; }
+    header { padding: 18px 18px; border-bottom: 1px solid #e6e6e6; background: #fafafa; }
+    header a { color: #1f3c88; text-decoration: none; font-weight: bold; }
+    header a:hover { text-decoration: underline; }
+    main { max-width: 1020px; margin: 0 auto; padding: 18px; }
+    h1 { margin: 0 0 6px 0; color: #1f3c88; font-size: 22px; }
+    h2 { color: #1f3c88; margin-top: 26px; }
+    h3 { color: #1f3c88; margin-top: 22px; }
+    h4 { color: #1f3c88; margin-bottom: 8px; margin-top: 18px; }
+    hr { border: 0; border-top: 1px solid #e6e6e6; margin: 22px 0; }
+    pre { background: #f6f8fa; border: 1px solid #e6e6e6; border-radius: 10px; padding: 12px; overflow: auto; white-space: pre-wrap; word-break: break-word; }
+    code { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+    ul, ol { padding-left: 22px; }
+    .small { color: #555; font-size: 12px; }
+    .note { border-left: 4px solid #1f3c88; background: #eef5ff; padding: 10px 12px; border-radius: 8px; }
+    .warn { border-left: 4px solid #c0392b; background: #fff1f0; padding: 10px 12px; border-radius: 8px; }
+    .ok { border-left: 4px solid #1f7a1f; background: #eefbf0; padding: 10px 12px; border-radius: 8px; }
+    .toc { border: 1px solid #e6e6e6; background: #fcfcfc; border-radius: 10px; padding: 12px; }
+    .toc ul { margin: 0; }
+    a { color: #1f3c88; }
+    table { border-collapse: collapse; width: 100%; margin: 10px 0; }
+    th, td { border: 1px solid #dcdcdc; padding: 8px; text-align: left; vertical-align: top; }
+    th { background: #f7f7f7; }
   </style>
 </head>
 
 <body>
 
-<a href="../../index.html">← Volver a la portada</a>
+<header>
+  <a href="../../index.html">← Volver a la portada</a>
+  <div class="small" style="margin-top:6px;">Ingeniería de Software III — Laboratorios</div>
+</header>
 
-<h1>Lab XX</h1>
+<main>
 
-<p>Contenido del laboratorio...</p>
+  <h1>Lab 04</h1>
+  <h2>Construcción desde cero de un proyecto base y evolución a microservicios con JWT, H2, Swagger, OpenFeign y Docker</h2>
+
+  <p>
+    En este laboratorio se construirá primero un <strong>proyecto base</strong> con la arquitectura esperada del curso:
+    <strong>controller → handler → service → repository → model</strong>.
+    Después, ese proyecto se reutilizará como <strong>consulta-service</strong> y se creará un segundo servicio,
+    <strong>auth-service</strong>, encargado de autenticar usuarios, validar contraseñas cifradas con BCrypt y generar tokens JWT.
+  </p>
+
+  <p>
+    Al finalizar el recorrido, la solución quedará compuesta por dos microservicios:
+    uno para autenticación y otro para consulta protegida de estudiantes.
+    La validación del token se realizará mediante comunicación entre servicios usando <strong>OpenFeign</strong>,
+    y la ejecución conjunta se hará con <strong>Docker Compose</strong>.
+  </p>
+
+  <div class="note">
+    <strong>En este laboratorio se trabajará con:</strong>
+    <ul>
+      <li>arquitectura por capas claramente separada;</li>
+      <li>DTO, handler, service y repository;</li>
+      <li>Swagger para documentación y pruebas;</li>
+      <li>usuarios almacenados en H2;</li>
+      <li>contraseñas cifradas con BCrypt;</li>
+      <li>JWT para autenticación;</li>
+      <li>OpenFeign para comunicación entre microservicios;</li>
+      <li>Docker para despliegue local.</li>
+    </ul>
+  </div>
+
+  <div class="warn" style="margin-top:10px;">
+    <strong>Importante:</strong>
+    en esta versión inicial ambos servicios usarán <strong>H2 embebido</strong>.
+    Esto permite concentrarse en el flujo completo sin agregar todavía la complejidad de una base de datos externa.
+  </div>
+
+  <hr />
+
+  <div class="toc">
+    <h3 style="margin-top:0;">Contenido</h3>
+    <ul>
+      <li><a href="#objetivo">1) Objetivo del laboratorio</a></li>
+      <li><a href="#requisitos">2) Requisitos previos</a></li>
+      <li><a href="#arquitectura">3) Arquitectura esperada</a></li>
+      <li><a href="#parte0">4) Parte 0 — Crear el proyecto base desde cero</a></li>
+      <li><a href="#parte1">5) Parte 1 — Crear consulta-service a partir del proyecto base</a></li>
+      <li><a href="#parte2">6) Parte 2 — Crear auth-service con H2, BCrypt y JWT</a></li>
+      <li><a href="#parte3">7) Parte 3 — Integrar OpenFeign entre consulta-service y auth-service</a></li>
+      <li><a href="#parte4">8) Parte 4 — Proteger el endpoint de estudiantes</a></li>
+      <li><a href="#parte5">9) Parte 5 — Dockerizar y orquestar ambos servicios</a></li>
+      <li><a href="#pruebas">10) Pruebas obligatorias en Swagger</a></li>
+      <li><a href="#entregable">11) Entregable</a></li>
+      <li><a href="#checklist">12) Checklist final</a></li>
+    </ul>
+  </div>
+
+  <hr />
+
+  <section id="objetivo">
+    <h2>1) Objetivo del laboratorio</h2>
+
+    <p>
+      Al finalizar el laboratorio, se deberá contar con una solución funcional compuesta por dos microservicios:
+      uno encargado de la autenticación y generación de JWT, y otro encargado de la consulta de estudiantes protegida por token.
+    </p>
+
+    <pre><code>Cliente
+   |
+   | POST /auth/login
+   v
+auth-service
+   |
+   | busca usuario en H2
+   | valida contraseña con BCrypt
+   | genera JWT
+   v
+Cliente
+   |
+   | GET /api/estudiantes
+   | Authorization: Bearer &lt;token&gt;
+   v
+consulta-service
+   |
+   | llama a auth-service con OpenFeign
+   | /auth/validate?token=...
+   v
+auth-service
+   |
+   | responde si el token es válido
+   v
+consulta-service
+   |
+   | si el token es válido devuelve estudiantes
+   v
+Cliente</code></pre>
+  </section>
+
+  <hr />
+
+  <section id="requisitos">
+    <h2>2) Requisitos previos</h2>
+
+    <ul>
+      <li>Java 21 instalado.</li>
+      <li>Maven instalado y accesible desde la terminal.</li>
+      <li>Docker Desktop instalado y en ejecución.</li>
+      <li>Un IDE como IntelliJ IDEA o Visual Studio Code.</li>
+      <li>Conexión a internet para descarga de dependencias.</li>
+    </ul>
+
+    <h3>2.1 Verificaciones previas</h3>
+    <p>Antes de iniciar, ejecute en la terminal:</p>
+
+    <pre><code>java -version
+mvn -version
+docker --version</code></pre>
+
+    <p>
+      Si alguno de los tres comandos falla, corrija el problema antes de continuar.
+      Continúe con el paso siguiente únicamente cuando los tres comandos respondan correctamente.
+    </p>
+  </section>
+
+  <hr />
+
+  <section id="arquitectura">
+    <h2>3) Arquitectura esperada</h2>
+
+    <h3>3.1 Estructura del proyecto base</h3>
+    <p>El proyecto base debe quedar organizado así:</p>
+
+    <pre><code>co.edu.demoacademico
+├── DemoAcademicoApplication.java
+├── api
+│   ├── ApiResponse.java
+│   └── ResponseBuilder.java
+├── config
+│   └── DataSeeder.java
+├── controller
+│   ├── EstudianteController.java
+│   └── GlobalExceptionHandler.java
+├── dto
+│   ├── EstudianteCreateDTO.java
+│   ├── EstudianteDTO.java
+│   └── EstudianteUpdateDTO.java
+├── exception
+│   ├── BusinessException.java
+│   └── NotFoundException.java
+├── handler
+│   └── EstudianteHandler.java
+├── model
+│   └── Estudiante.java
+├── repository
+│   └── EstudianteRepository.java
+└── service
+    ├── EstudianteService.java
+    └── EstudianteServiceImpl.java</code></pre>
+
+    <h3>3.2 Estructura final esperada</h3>
+
+    <pre><code>microservicios-demoacademico/
+├── auth-service/
+│   ├── pom.xml
+│   ├── Dockerfile
+│   └── src/
+└── consulta-service/
+    ├── pom.xml
+    ├── Dockerfile
+    └── src/</code></pre>
+
+    <div class="note">
+      Primero se construirá el proyecto base completo.
+      Cuando esa parte ya esté funcional, se continuará con la separación en microservicios.
+    </div>
+  </section>
+
+  <hr />
+
+  <section id="parte0">
+    <h2>4) Parte 0 — Crear el proyecto base desde cero</h2>
+
+    <p>
+      En esta parte se construirá el proyecto <strong>demo-academico</strong>.
+      Este proyecto será el punto de partida sobre el que luego se construirá <strong>consulta-service</strong>.
+    </p>
+
+    <h3>4.1 Crear el proyecto Spring Boot</h3>
+    <p>Realice la creación del proyecto con los siguientes datos:</p>
+
+    <table>
+      <tr><th>Campo</th><th>Valor</th></tr>
+      <tr><td>Project</td><td>Maven</td></tr>
+      <tr><td>Language</td><td>Java</td></tr>
+      <tr><td>Spring Boot</td><td>3.2.5</td></tr>
+      <tr><td>Group</td><td><code>co.edu</code></td></tr>
+      <tr><td>Artifact</td><td><code>demo-academico</code></td></tr>
+      <tr><td>Name</td><td><code>demo-academico</code></td></tr>
+      <tr><td>Package name</td><td><code>co.edu.demoacademico</code></td></tr>
+      <tr><td>Java</td><td>21</td></tr>
+    </table>
+
+    <p>Seleccione estas dependencias iniciales:</p>
+    <ul>
+      <li>Spring Web</li>
+      <li>Spring Data JPA</li>
+      <li>Validation</li>
+      <li>H2 Database</li>
+    </ul>
+
+    <p>Continúe con el paso siguiente cuando el proyecto ya se encuentre creado y abra correctamente en el IDE.</p>
+
+    <h3>4.2 Reemplazar completamente el archivo pom.xml</h3>
+    <p>Abra el archivo <code>pom.xml</code> y reemplácelo completamente por el siguiente contenido:</p>
+
+    <pre><code>&lt;?xml version="1.0" encoding="UTF-8"?&gt;
+&lt;project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd"&gt;
+
+    &lt;modelVersion&gt;4.0.0&lt;/modelVersion&gt;
+
+    &lt;parent&gt;
+        &lt;groupId&gt;org.springframework.boot&lt;/groupId&gt;
+        &lt;artifactId&gt;spring-boot-starter-parent&lt;/artifactId&gt;
+        &lt;version&gt;3.2.5&lt;/version&gt;
+        &lt;relativePath/&gt;
+    &lt;/parent&gt;
+
+    &lt;groupId&gt;co.edu&lt;/groupId&gt;
+    &lt;artifactId&gt;demo-academico&lt;/artifactId&gt;
+    &lt;version&gt;0.0.1-SNAPSHOT&lt;/version&gt;
+    &lt;name&gt;demo-academico&lt;/name&gt;
+    &lt;description&gt;Proyecto base con CRUD de estudiantes&lt;/description&gt;
+
+    &lt;properties&gt;
+        &lt;java.version&gt;21&lt;/java.version&gt;
+    &lt;/properties&gt;
+
+    &lt;dependencies&gt;
+        &lt;dependency&gt;
+            &lt;groupId&gt;org.springframework.boot&lt;/groupId&gt;
+            &lt;artifactId&gt;spring-boot-starter-web&lt;/artifactId&gt;
+        &lt;/dependency&gt;
+
+        &lt;dependency&gt;
+            &lt;groupId&gt;org.springframework.boot&lt;/groupId&gt;
+            &lt;artifactId&gt;spring-boot-starter-data-jpa&lt;/artifactId&gt;
+        &lt;/dependency&gt;
+
+        &lt;dependency&gt;
+            &lt;groupId&gt;org.springframework.boot&lt;/groupId&gt;
+            &lt;artifactId&gt;spring-boot-starter-validation&lt;/artifactId&gt;
+        &lt;/dependency&gt;
+
+        &lt;dependency&gt;
+            &lt;groupId&gt;com.h2database&lt;/groupId&gt;
+            &lt;artifactId&gt;h2&lt;/artifactId&gt;
+            &lt;scope&gt;runtime&lt;/scope&gt;
+        &lt;/dependency&gt;
+
+        &lt;dependency&gt;
+            &lt;groupId&gt;org.springdoc&lt;/groupId&gt;
+            &lt;artifactId&gt;springdoc-openapi-starter-webmvc-ui&lt;/artifactId&gt;
+            &lt;version&gt;2.6.0&lt;/version&gt;
+        &lt;/dependency&gt;
+
+        &lt;dependency&gt;
+            &lt;groupId&gt;com.github.javafaker&lt;/groupId&gt;
+            &lt;artifactId&gt;javafaker&lt;/artifactId&gt;
+            &lt;version&gt;1.0.2&lt;/version&gt;
+        &lt;/dependency&gt;
+
+        &lt;dependency&gt;
+            &lt;groupId&gt;org.springframework.boot&lt;/groupId&gt;
+            &lt;artifactId&gt;spring-boot-starter-test&lt;/artifactId&gt;
+            &lt;scope&gt;test&lt;/scope&gt;
+        &lt;/dependency&gt;
+    &lt;/dependencies&gt;
+
+    &lt;build&gt;
+        &lt;plugins&gt;
+            &lt;plugin&gt;
+                &lt;groupId&gt;org.springframework.boot&lt;/groupId&gt;
+                &lt;artifactId&gt;spring-boot-maven-plugin&lt;/artifactId&gt;
+            &lt;/plugin&gt;
+        &lt;/plugins&gt;
+    &lt;/build&gt;
+&lt;/project&gt;</code></pre>
+
+    <p>Continúe cuando el IDE termine de descargar dependencias y ya no muestre errores en el archivo.</p>
+
+    <h3>4.3 Crear el archivo application.yaml</h3>
+    <p>Cree o reemplace el archivo <code>src/main/resources/application.yaml</code> con este contenido:</p>
+
+    <pre><code>server:
+  port: 8080
+
+spring:
+  datasource:
+    url: jdbc:h2:mem:demoacademico;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+    defer-datasource-initialization: true
+  sql:
+    init:
+      mode: always
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+    enabled: true
+  swagger-ui:
+    enabled: true
+    path: /swagger-ui.html
+
+app:
+  seed:
+    enabled: true
+    cantidad: 500</code></pre>
+
+    <h3>4.4 Crear los paquetes de la arquitectura</h3>
+    <p>Dentro de <code>src/main/java/co/edu/demoacademico</code>, cree las siguientes carpetas:</p>
+
+    <pre><code>api
+config
+controller
+dto
+exception
+handler
+model
+repository
+service</code></pre>
+
+    <p>Continúe cuando la estructura de carpetas coincida con la arquitectura esperada.</p>
+
+    <h3>4.5 Crear la clase principal del proyecto</h3>
+    <p>Archivo: <code>src/main/java/co/edu/demoacademico/DemoAcademicoApplication.java</code></p>
+
+    <pre><code>package co.edu.demoacademico;
+
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+
+@SpringBootApplication
+public class DemoAcademicoApplication {
+
+    public static void main(String[] args) {
+        SpringApplication.run(DemoAcademicoApplication.class, args);
+    }
+}</code></pre>
+
+    <h3>4.6 Crear la entidad Estudiante</h3>
+    <p>Archivo: <code>model/Estudiante.java</code></p>
+
+    <pre><code>package co.edu.demoacademico.model;
+
+import jakarta.persistence.*;
+
+@Entity
+@Table(name = "estudiante", uniqueConstraints = {
+        @UniqueConstraint(name = "uk_estudiante_email", columnNames = {"email"})
+})
+public class Estudiante {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(nullable = false, length = 120)
+    private String nombre;
+
+    @Column(nullable = false, length = 120)
+    private String apellido;
+
+    @Column(nullable = false, length = 160)
+    private String email;
+
+    @Column(nullable = false)
+    private Integer edad;
+
+    public Estudiante() {
+    }
+
+    public Long getId() {
+        return id;
+    }
+
+    public void setId(Long id) {
+        this.id = id;
+    }
+
+    public String getNombre() {
+        return nombre;
+    }
+
+    public void setNombre(String nombre) {
+        this.nombre = nombre;
+    }
+
+    public String getApellido() {
+        return apellido;
+    }
+
+    public void setApellido(String apellido) {
+        this.apellido = apellido;
+    }
+
+    public String getEmail() {
+        return email;
+    }
+
+    public void setEmail(String email) {
+        this.email = email;
+    }
+
+    public Integer getEdad() {
+        return edad;
+    }
+
+    public void setEdad(Integer edad) {
+        this.edad = edad;
+    }
+}</code></pre>
+
+    <h3>4.7 Crear los DTOs del estudiante</h3>
+
+    <h4>Archivo: dto/EstudianteCreateDTO.java</h4>
+    <pre><code>package co.edu.demoacademico.dto;
+
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+
+public class EstudianteCreateDTO {
+
+    @NotBlank(message = "El nombre es obligatorio")
+    private String nombre;
+
+    @NotBlank(message = "El apellido es obligatorio")
+    private String apellido;
+
+    @NotBlank(message = "El email es obligatorio")
+    @Email(message = "El email no es válido")
+    private String email;
+
+    @NotNull(message = "La edad es obligatoria")
+    @Min(value = 1, message = "La edad mínima es 1")
+    private Integer edad;
+
+    public String getNombre() {
+        return nombre;
+    }
+
+    public void setNombre(String nombre) {
+        this.nombre = nombre;
+    }
+
+    public String getApellido() {
+        return apellido;
+    }
+
+    public void setApellido(String apellido) {
+        this.apellido = apellido;
+    }
+
+    public String getEmail() {
+        return email;
+    }
+
+    public void setEmail(String email) {
+        this.email = email;
+    }
+
+    public Integer getEdad() {
+        return edad;
+    }
+
+    public void setEdad(Integer edad) {
+        this.edad = edad;
+    }
+}</code></pre>
+
+    <h4>Archivo: dto/EstudianteUpdateDTO.java</h4>
+    <pre><code>package co.edu.demoacademico.dto;
+
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+
+public class EstudianteUpdateDTO {
+
+    @NotBlank(message = "El nombre es obligatorio")
+    private String nombre;
+
+    @NotBlank(message = "El apellido es obligatorio")
+    private String apellido;
+
+    @NotBlank(message = "El email es obligatorio")
+    @Email(message = "El email no es válido")
+    private String email;
+
+    @NotNull(message = "La edad es obligatoria")
+    @Min(value = 1, message = "La edad mínima es 1")
+    private Integer edad;
+
+    public String getNombre() {
+        return nombre;
+    }
+
+    public void setNombre(String nombre) {
+        this.nombre = nombre;
+    }
+
+    public String getApellido() {
+        return apellido;
+    }
+
+    public void setApellido(String apellido) {
+        this.apellido = apellido;
+    }
+
+    public String getEmail() {
+        return email;
+    }
+
+    public void setEmail(String email) {
+        this.email = email;
+    }
+
+    public Integer getEdad() {
+        return edad;
+    }
+
+    public void setEdad(Integer edad) {
+        this.edad = edad;
+    }
+}</code></pre>
+
+    <h4>Archivo: dto/EstudianteDTO.java</h4>
+    <pre><code>package co.edu.demoacademico.dto;
+
+public class EstudianteDTO {
+
+    private Long id;
+    private String nombre;
+    private String apellido;
+    private String email;
+    private Integer edad;
+
+    public Long getId() {
+        return id;
+    }
+
+    public void setId(Long id) {
+        this.id = id;
+    }
+
+    public String getNombre() {
+        return nombre;
+    }
+
+    public void setNombre(String nombre) {
+        this.nombre = nombre;
+    }
+
+    public String getApellido() {
+        return apellido;
+    }
+
+    public void setApellido(String apellido) {
+        this.apellido = apellido;
+    }
+
+    public String getEmail() {
+        return email;
+    }
+
+    public void setEmail(String email) {
+        this.email = email;
+    }
+
+    public Integer getEdad() {
+        return edad;
+    }
+
+    public void setEdad(Integer edad) {
+        this.edad = edad;
+    }
+}</code></pre>
+
+    <h3>4.8 Crear las excepciones de negocio</h3>
+
+    <h4>Archivo: exception/BusinessException.java</h4>
+    <pre><code>package co.edu.demoacademico.exception;
+
+public class BusinessException extends RuntimeException {
+
+    public BusinessException(String message) {
+        super(message);
+    }
+}</code></pre>
+
+    <h4>Archivo: exception/NotFoundException.java</h4>
+    <pre><code>package co.edu.demoacademico.exception;
+
+public class NotFoundException extends RuntimeException {
+
+    public NotFoundException(String message) {
+        super(message);
+    }
+}</code></pre>
+
+    <h3>4.9 Crear el repositorio JPA</h3>
+    <p>Archivo: <code>repository/EstudianteRepository.java</code></p>
+
+    <pre><code>package co.edu.demoacademico.repository;
+
+import co.edu.demoacademico.model.Estudiante;
+import org.springframework.data.jpa.repository.JpaRepository;
+
+public interface EstudianteRepository extends JpaRepository&lt;Estudiante, Long&gt; {
+    boolean existsByEmail(String email);
+    boolean existsByEmailAndIdNot(String email, Long id);
+}</code></pre>
+
+    <h3>4.10 Crear la interfaz del servicio</h3>
+    <p>Archivo: <code>service/EstudianteService.java</code></p>
+
+    <pre><code>package co.edu.demoacademico.service;
+
+import co.edu.demoacademico.model.Estudiante;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+
+public interface EstudianteService {
+    Estudiante crear(Estudiante estudiante);
+    Estudiante obtenerPorId(Long id);
+    Page&lt;Estudiante&gt; listar(Pageable pageable);
+    Estudiante actualizar(Long id, Estudiante estudiante);
+    void eliminar(Long id);
+}</code></pre>
+
+    <h3>4.11 Crear la implementación del servicio</h3>
+    <p>Archivo: <code>service/EstudianteServiceImpl.java</code></p>
+
+    <pre><code>package co.edu.demoacademico.service;
+
+import co.edu.demoacademico.exception.BusinessException;
+import co.edu.demoacademico.exception.NotFoundException;
+import co.edu.demoacademico.model.Estudiante;
+import co.edu.demoacademico.repository.EstudianteRepository;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+@Service
+@Transactional
+public class EstudianteServiceImpl implements EstudianteService {
+
+    private final EstudianteRepository repository;
+
+    public EstudianteServiceImpl(EstudianteRepository repository) {
+        this.repository = repository;
+    }
+
+    @Override
+    public Estudiante crear(Estudiante estudiante) {
+        if (repository.existsByEmail(estudiante.getEmail())) {
+            throw new BusinessException("Ya existe un estudiante con el email: " + estudiante.getEmail());
+        }
+        return repository.save(estudiante);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Estudiante obtenerPorId(Long id) {
+        return repository.findById(id)
+                .orElseThrow(() -> new NotFoundException("Estudiante no encontrado: " + id));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page&lt;Estudiante&gt; listar(Pageable pageable) {
+        return repository.findAll(pageable);
+    }
+
+    @Override
+    public Estudiante actualizar(Long id, Estudiante estudiante) {
+        Estudiante actual = obtenerPorId(id);
+
+        if (repository.existsByEmailAndIdNot(estudiante.getEmail(), id)) {
+            throw new BusinessException("Ya existe otro estudiante con el email: " + estudiante.getEmail());
+        }
+
+        actual.setNombre(estudiante.getNombre());
+        actual.setApellido(estudiante.getApellido());
+        actual.setEmail(estudiante.getEmail());
+        actual.setEdad(estudiante.getEdad());
+
+        return repository.save(actual);
+    }
+
+    @Override
+    public void eliminar(Long id) {
+        repository.delete(obtenerPorId(id));
+    }
+}</code></pre>
+
+    <h3>4.12 Crear la respuesta estándar</h3>
+
+    <h4>Archivo: api/ApiResponse.java</h4>
+    <pre><code>package co.edu.demoacademico.api;
+
+public class ApiResponse&lt;T&gt; {
+
+    private boolean success;
+    private String message;
+    private T data;
+
+    public ApiResponse() {
+    }
+
+    public ApiResponse(boolean success, String message, T data) {
+        this.success = success;
+        this.message = message;
+        this.data = data;
+    }
+
+    public boolean isSuccess() {
+        return success;
+    }
+
+    public void setSuccess(boolean success) {
+        this.success = success;
+    }
+
+    public String getMessage() {
+        return message;
+    }
+
+    public void setMessage(String message) {
+        this.message = message;
+    }
+
+    public T getData() {
+        return data;
+    }
+
+    public void setData(T data) {
+        this.data = data;
+    }
+}</code></pre>
+
+    <h4>Archivo: api/ResponseBuilder.java</h4>
+    <pre><code>package co.edu.demoacademico.api;
+
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+
+public class ResponseBuilder {
+
+    public static &lt;T&gt; ResponseEntity&lt;ApiResponse&lt;T&gt;&gt; ok(String message, T data) {
+        return ResponseEntity.ok(new ApiResponse&lt;&gt;(true, message, data));
+    }
+
+    public static &lt;T&gt; ResponseEntity&lt;ApiResponse&lt;T&gt;&gt; created(String message, T data) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(new ApiResponse&lt;&gt;(true, message, data));
+    }
+
+    public static &lt;T&gt; ResponseEntity&lt;ApiResponse&lt;T&gt;&gt; error(HttpStatus status, String message) {
+        return ResponseEntity.status(status)
+                .body(new ApiResponse&lt;&gt;(false, message, null));
+    }
+}</code></pre>
+
+    <h3>4.13 Crear el Handler</h3>
+    <p>Archivo: <code>handler/EstudianteHandler.java</code></p>
+
+    <pre><code>package co.edu.demoacademico.handler;
+
+import co.edu.demoacademico.dto.EstudianteCreateDTO;
+import co.edu.demoacademico.dto.EstudianteDTO;
+import co.edu.demoacademico.dto.EstudianteUpdateDTO;
+import co.edu.demoacademico.model.Estudiante;
+import co.edu.demoacademico.service.EstudianteService;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.stereotype.Component;
+
+@Component
+public class EstudianteHandler {
+
+    private final EstudianteService service;
+
+    public EstudianteHandler(EstudianteService service) {
+        this.service = service;
+    }
+
+    public EstudianteDTO crear(EstudianteCreateDTO in) {
+        Estudiante estudiante = new Estudiante();
+        estudiante.setNombre(in.getNombre());
+        estudiante.setApellido(in.getApellido());
+        estudiante.setEmail(in.getEmail());
+        estudiante.setEdad(in.getEdad());
+        return toDto(service.crear(estudiante));
+    }
+
+    public EstudianteDTO obtener(Long id) {
+        return toDto(service.obtenerPorId(id));
+    }
+
+    public Page&lt;EstudianteDTO&gt; listar(Pageable pageable) {
+        return service.listar(pageable).map(this::toDto);
+    }
+
+    public EstudianteDTO actualizar(Long id, EstudianteUpdateDTO in) {
+        Estudiante estudiante = new Estudiante();
+        estudiante.setNombre(in.getNombre());
+        estudiante.setApellido(in.getApellido());
+        estudiante.setEmail(in.getEmail());
+        estudiante.setEdad(in.getEdad());
+        return toDto(service.actualizar(id, estudiante));
+    }
+
+    public void eliminar(Long id) {
+        service.eliminar(id);
+    }
+
+    private EstudianteDTO toDto(Estudiante estudiante) {
+        EstudianteDTO dto = new EstudianteDTO();
+        dto.setId(estudiante.getId());
+        dto.setNombre(estudiante.getNombre());
+        dto.setApellido(estudiante.getApellido());
+        dto.setEmail(estudiante.getEmail());
+        dto.setEdad(estudiante.getEdad());
+        return dto;
+    }
+}</code></pre>
+
+    <h3>4.14 Crear el controlador REST</h3>
+    <p>Archivo: <code>controller/EstudianteController.java</code></p>
+
+    <pre><code>package co.edu.demoacademico.controller;
+
+import co.edu.demoacademico.api.ApiResponse;
+import co.edu.demoacademico.api.ResponseBuilder;
+import co.edu.demoacademico.dto.EstudianteCreateDTO;
+import co.edu.demoacademico.dto.EstudianteDTO;
+import co.edu.demoacademico.dto.EstudianteUpdateDTO;
+import co.edu.demoacademico.handler.EstudianteHandler;
+import jakarta.validation.Valid;
+import org.springdoc.core.annotations.ParameterObject;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+@RestController
+@RequestMapping("/api/estudiantes")
+public class EstudianteController {
+
+    private final EstudianteHandler handler;
+
+    public EstudianteController(EstudianteHandler handler) {
+        this.handler = handler;
+    }
+
+    @PostMapping
+    public ResponseEntity&lt;ApiResponse&lt;EstudianteDTO&gt;&gt; crear(@Valid @RequestBody EstudianteCreateDTO in) {
+        return ResponseBuilder.created("Estudiante creado", handler.crear(in));
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity&lt;ApiResponse&lt;EstudianteDTO&gt;&gt; obtener(@PathVariable Long id) {
+        return ResponseBuilder.ok("OK", handler.obtener(id));
+    }
+
+    @GetMapping
+    public ResponseEntity&lt;ApiResponse&lt;Page&lt;EstudianteDTO&gt;&gt;&gt; listar(@ParameterObject Pageable pageable) {
+        return ResponseBuilder.ok("OK", handler.listar(pageable));
+    }
+
+    @PutMapping("/{id}")
+    public ResponseEntity&lt;ApiResponse&lt;EstudianteDTO&gt;&gt; actualizar(
+            @PathVariable Long id,
+            @Valid @RequestBody EstudianteUpdateDTO in) {
+        return ResponseBuilder.ok("Estudiante actualizado", handler.actualizar(id, in));
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity&lt;ApiResponse&lt;Object&gt;&gt; eliminar(@PathVariable Long id) {
+        handler.eliminar(id);
+        return ResponseBuilder.ok("Estudiante eliminado", null);
+    }
+}</code></pre>
+
+    <h3>4.15 Crear el manejador global de excepciones</h3>
+    <p>Archivo: <code>controller/GlobalExceptionHandler.java</code></p>
+
+    <pre><code>package co.edu.demoacademico.controller;
+
+import co.edu.demoacademico.api.ApiResponse;
+import co.edu.demoacademico.exception.BusinessException;
+import co.edu.demoacademico.exception.NotFoundException;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.validation.FieldError;
+import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.RestControllerAdvice;
+
+import java.util.LinkedHashMap;
+import java.util.Map;
+
+@RestControllerAdvice
+public class GlobalExceptionHandler {
+
+    @ExceptionHandler(NotFoundException.class)
+    public ResponseEntity&lt;ApiResponse&lt;Object&gt;&gt; handleNotFound(NotFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(new ApiResponse&lt;&gt;(false, ex.getMessage(), null));
+    }
+
+    @ExceptionHandler(BusinessException.class)
+    public ResponseEntity&lt;ApiResponse&lt;Object&gt;&gt; handleBusiness(BusinessException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(new ApiResponse&lt;&gt;(false, ex.getMessage(), null));
+    }
+
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ResponseEntity&lt;ApiResponse&lt;Object&gt;&gt; handleValidation(MethodArgumentNotValidException ex) {
+        Map&lt;String, String&gt; errors = new LinkedHashMap&lt;&gt;();
+        for (FieldError error : ex.getBindingResult().getFieldErrors()) {
+            errors.put(error.getField(), error.getDefaultMessage());
+        }
+
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(new ApiResponse&lt;&gt;(false, "Error de validación", errors));
+    }
+
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity&lt;ApiResponse&lt;Object&gt;&gt; handleGeneric(Exception ex) {
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(new ApiResponse&lt;&gt;(false, "Error interno del servidor", null));
+    }
+}</code></pre>
+
+    <h3>4.16 Crear el seeder de estudiantes</h3>
+    <p>Archivo: <code>config/DataSeeder.java</code></p>
+
+    <pre><code>package co.edu.demoacademico.config;
+
+import co.edu.demoacademico.model.Estudiante;
+import co.edu.demoacademico.repository.EstudianteRepository;
+import com.github.javafaker.Faker;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.CommandLineRunner;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+
+import java.util.Locale;
+
+@Configuration
+public class DataSeeder {
+
+    @Value("${app.seed.enabled:true}")
+    private boolean enabled;
+
+    @Value("${app.seed.cantidad:500}")
+    private int cantidad;
+
+    @Bean
+    CommandLineRunner seedData(EstudianteRepository repository) {
+        return args -> {
+            if (!enabled) return;
+            if (repository.count() > 0) return;
+
+            Faker faker = new Faker(new Locale("es"));
+
+            for (int i = 0; i < cantidad; i++) {
+                Estudiante estudiante = new Estudiante();
+                estudiante.setNombre(faker.name().firstName());
+                estudiante.setApellido(faker.name().lastName());
+                estudiante.setEmail("estudiante" + i + "@demoacademico.edu");
+                estudiante.setEdad(18 + (i % 20));
+                repository.save(estudiante);
+            }
+        };
+    }
+}</code></pre>
+
+    <h3>4.17 Compilar y probar el proyecto base</h3>
+    <p>Desde la raíz del proyecto, ejecute:</p>
+
+    <pre><code>mvn clean package -DskipTests</code></pre>
+
+    <p>Posteriormente, ejecute la aplicación desde el IDE o con Maven.</p>
+
+    <p>Verifique estas URLs:</p>
+    <ul>
+      <li><code>http://localhost:8080/swagger-ui.html</code></li>
+      <li><code>http://localhost:8080/h2-console</code></li>
+    </ul>
+
+    <p>En Swagger, pruebe al menos:</p>
+    <ul>
+      <li><code>GET /api/estudiantes</code></li>
+      <li><code>POST /api/estudiantes</code></li>
+    </ul>
+
+    <div class="ok">
+      Continúe con la parte 1 únicamente cuando el proyecto base funcione sin errores.
+    </div>
+  </section>
+
+  <hr />
+
+  <section id="parte1">
+    <h2>5) Parte 1 — Crear consulta-service a partir del proyecto base</h2>
+
+    <h3>5.1 Crear la carpeta raíz de microservicios</h3>
+    <p>Cree una carpeta nueva llamada:</p>
+    <pre><code>microservicios-demoacademico</code></pre>
+
+    <h3>5.2 Copiar el proyecto base</h3>
+    <p>Copie el proyecto <code>demo-academico</code> dentro de la carpeta raíz y renómbrelo como:</p>
+    <pre><code>consulta-service</code></pre>
+
+    <h3>5.3 Ajustar el archivo pom.xml de consulta-service</h3>
+    <p>En <code>consulta-service/pom.xml</code> modifique estas líneas:</p>
+
+    <pre><code>&lt;artifactId&gt;consulta-service&lt;/artifactId&gt;
+&lt;name&gt;consulta-service&lt;/name&gt;
+&lt;description&gt;Microservicio de consulta&lt;/description&gt;</code></pre>
+
+    <h3>5.4 Agregar OpenFeign al pom.xml</h3>
+    <p>En el mismo archivo <code>pom.xml</code> agregue lo siguiente.</p>
+
+    <h4>Dependency management</h4>
+    <pre><code>&lt;dependencyManagement&gt;
+    &lt;dependencies&gt;
+        &lt;dependency&gt;
+            &lt;groupId&gt;org.springframework.cloud&lt;/groupId&gt;
+            &lt;artifactId&gt;spring-cloud-dependencies&lt;/artifactId&gt;
+            &lt;version&gt;2023.0.1&lt;/version&gt;
+            &lt;type&gt;pom&lt;/type&gt;
+            &lt;scope&gt;import&lt;/scope&gt;
+        &lt;/dependency&gt;
+    &lt;/dependencies&gt;
+&lt;/dependencyManagement&gt;</code></pre>
+
+    <h4>Dependencia Feign</h4>
+    <pre><code>&lt;dependency&gt;
+    &lt;groupId&gt;org.springframework.cloud&lt;/groupId&gt;
+    &lt;artifactId&gt;spring-cloud-starter-openfeign&lt;/artifactId&gt;
+&lt;/dependency&gt;</code></pre>
+
+    <p>Continúe cuando el IDE haya actualizado correctamente las dependencias.</p>
+
+    <h3>5.5 Cambiar el archivo application.yaml</h3>
+    <p>Archivo: <code>consulta-service/src/main/resources/application.yaml</code></p>
+
+    <pre><code>server:
+  port: 8082
+
+spring:
+  datasource:
+    url: jdbc:h2:mem:demoacademico;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+    defer-datasource-initialization: true
+  sql:
+    init:
+      mode: always
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+    enabled: true
+  swagger-ui:
+    enabled: true
+    path: /swagger-ui.html
+
+services:
+  auth:
+    url: http://localhost:8081
+
+app:
+  seed:
+    enabled: true
+    cantidad: 500</code></pre>
+
+    <h3>5.6 Habilitar Feign en la clase principal</h3>
+    <p>Archivo: <code>consulta-service/src/main/java/co/edu/demoacademico/DemoAcademicoApplication.java</code></p>
+
+    <pre><code>package co.edu.demoacademico;
+
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.cloud.openfeign.EnableFeignClients;
+
+@EnableFeignClients
+@SpringBootApplication
+public class DemoAcademicoApplication {
+
+    public static void main(String[] args) {
+        SpringApplication.run(DemoAcademicoApplication.class, args);
+    }
+}</code></pre>
+
+    <div class="ok">
+      Continúe con la parte 2 cuando <code>consulta-service</code> ya compile sin errores.
+    </div>
+  </section>
+
+  <hr />
+
+  <section id="parte2">
+    <h2>6) Parte 2 — Crear auth-service con H2, BCrypt y JWT</h2>
+
+    <p>
+      En esta parte se creará el microservicio de autenticación.
+      Este servicio almacenará usuarios en H2 y validará contraseñas cifradas con BCrypt.
+    </p>
+
+    <h3>6.1 Crear el proyecto auth-service</h3>
+
+    <table>
+      <tr><th>Campo</th><th>Valor</th></tr>
+      <tr><td>Group</td><td><code>co.edu</code></td></tr>
+      <tr><td>Artifact</td><td><code>auth-service</code></td></tr>
+      <tr><td>Name</td><td><code>auth-service</code></td></tr>
+      <tr><td>Package</td><td><code>co.edu.authservice</code></td></tr>
+      <tr><td>Java</td><td>21</td></tr>
+      <tr><td>Spring Boot</td><td>3.2.5</td></tr>
+    </table>
+
+    <p>Seleccione estas dependencias iniciales:</p>
+    <ul>
+      <li>Spring Web</li>
+      <li>Spring Data JPA</li>
+      <li>Spring Security</li>
+      <li>Validation</li>
+      <li>H2 Database</li>
+    </ul>
+
+    <h3>6.2 Reemplazar completamente el archivo pom.xml</h3>
+    <p>Archivo: <code>auth-service/pom.xml</code></p>
+
+    <pre><code>&lt;?xml version="1.0" encoding="UTF-8"?&gt;
+&lt;project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd"&gt;
+
+    &lt;modelVersion&gt;4.0.0&lt;/modelVersion&gt;
+
+    &lt;parent&gt;
+        &lt;groupId&gt;org.springframework.boot&lt;/groupId&gt;
+        &lt;artifactId&gt;spring-boot-starter-parent&lt;/artifactId&gt;
+        &lt;version&gt;3.2.5&lt;/version&gt;
+        &lt;relativePath/&gt;
+    &lt;/parent&gt;
+
+    &lt;groupId&gt;co.edu&lt;/groupId&gt;
+    &lt;artifactId&gt;auth-service&lt;/artifactId&gt;
+    &lt;version&gt;0.0.1-SNAPSHOT&lt;/version&gt;
+    &lt;name&gt;auth-service&lt;/name&gt;
+    &lt;description&gt;Microservicio de autenticación con JWT y H2&lt;/description&gt;
+
+    &lt;properties&gt;
+        &lt;java.version&gt;21&lt;/java.version&gt;
+    &lt;/properties&gt;
+
+    &lt;dependencies&gt;
+        &lt;dependency&gt;
+            &lt;groupId&gt;org.springframework.boot&lt;/groupId&gt;
+            &lt;artifactId&gt;spring-boot-starter-web&lt;/artifactId&gt;
+        &lt;/dependency&gt;
+
+        &lt;dependency&gt;
+            &lt;groupId&gt;org.springframework.boot&lt;/groupId&gt;
+            &lt;artifactId&gt;spring-boot-starter-data-jpa&lt;/artifactId&gt;
+        &lt;/dependency&gt;
+
+        &lt;dependency&gt;
+            &lt;groupId&gt;org.springframework.boot&lt;/groupId&gt;
+            &lt;artifactId&gt;spring-boot-starter-security&lt;/artifactId&gt;
+        &lt;/dependency&gt;
+
+        &lt;dependency&gt;
+            &lt;groupId&gt;org.springframework.boot&lt;/groupId&gt;
+            &lt;artifactId&gt;spring-boot-starter-validation&lt;/artifactId&gt;
+        &lt;/dependency&gt;
+
+        &lt;dependency&gt;
+            &lt;groupId&gt;com.h2database&lt;/groupId&gt;
+            &lt;artifactId&gt;h2&lt;/artifactId&gt;
+            &lt;scope&gt;runtime&lt;/scope&gt;
+        &lt;/dependency&gt;
+
+        &lt;dependency&gt;
+            &lt;groupId&gt;org.springdoc&lt;/groupId&gt;
+            &lt;artifactId&gt;springdoc-openapi-starter-webmvc-ui&lt;/artifactId&gt;
+            &lt;version&gt;2.6.0&lt;/version&gt;
+        &lt;/dependency&gt;
+
+        &lt;dependency&gt;
+            &lt;groupId&gt;io.jsonwebtoken&lt;/groupId&gt;
+            &lt;artifactId&gt;jjwt-api&lt;/artifactId&gt;
+            &lt;version&gt;0.11.5&lt;/version&gt;
+        &lt;/dependency&gt;
+        &lt;dependency&gt;
+            &lt;groupId&gt;io.jsonwebtoken&lt;/groupId&gt;
+            &lt;artifactId&gt;jjwt-impl&lt;/artifactId&gt;
+            &lt;version&gt;0.11.5&lt;/version&gt;
+            &lt;scope&gt;runtime&lt;/scope&gt;
+        &lt;/dependency&gt;
+        &lt;dependency&gt;
+            &lt;groupId&gt;io.jsonwebtoken&lt;/groupId&gt;
+            &lt;artifactId&gt;jjwt-jackson&lt;/artifactId&gt;
+            &lt;version&gt;0.11.5&lt;/version&gt;
+            &lt;scope&gt;runtime&lt;/scope&gt;
+        &lt;/dependency&gt;
+
+        &lt;dependency&gt;
+            &lt;groupId&gt;org.springframework.boot&lt;/groupId&gt;
+            &lt;artifactId&gt;spring-boot-starter-test&lt;/artifactId&gt;
+            &lt;scope&gt;test&lt;/scope&gt;
+        &lt;/dependency&gt;
+    &lt;/dependencies&gt;
+
+    &lt;build&gt;
+        &lt;plugins&gt;
+            &lt;plugin&gt;
+                &lt;groupId&gt;org.springframework.boot&lt;/groupId&gt;
+                &lt;artifactId&gt;spring-boot-maven-plugin&lt;/artifactId&gt;
+            &lt;/plugin&gt;
+        &lt;/plugins&gt;
+    &lt;/build&gt;
+&lt;/project&gt;</code></pre>
+
+    <h3>6.3 Crear la estructura de paquetes del servicio de autenticación</h3>
+
+    <pre><code>co/edu/authservice
+├── AuthServiceApplication.java
+├── config
+│   ├── AuthDataSeeder.java
+│   └── SecurityConfig.java
+├── controller
+│   └── AuthController.java
+├── dto
+│   ├── LoginRequest.java
+│   └── LoginResponse.java
+├── model
+│   └── AuthUser.java
+├── repository
+│   └── AuthUserRepository.java
+├── security
+│   └── JwtUtil.java
+└── service
+    └── AuthService.java</code></pre>
+
+    <h3>6.4 Crear la clase principal</h3>
+    <p>Archivo: <code>AuthServiceApplication.java</code></p>
+
+    <pre><code>package co.edu.authservice;
+
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+
+@SpringBootApplication
+public class AuthServiceApplication {
+
+    public static void main(String[] args) {
+        SpringApplication.run(AuthServiceApplication.class, args);
+    }
+}</code></pre>
+
+    <h3>6.5 Crear el archivo application.yml</h3>
+    <p>Archivo: <code>src/main/resources/application.yml</code></p>
+
+    <pre><code>server:
+  port: 8081
+
+spring:
+  datasource:
+    url: jdbc:h2:mem:authdb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+
+jwt:
+  secret: mi_clave_super_segura_para_jwt_12345678901234567890
+  expiration: 3600000
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+    enabled: true
+  swagger-ui:
+    enabled: true
+    path: /swagger-ui.html</code></pre>
+
+    <h3>6.6 Crear la entidad AuthUser</h3>
+    <p>Archivo: <code>model/AuthUser.java</code></p>
+
+    <pre><code>package co.edu.authservice.model;
+
+import jakarta.persistence.*;
+
+@Entity
+@Table(name = "auth_user", uniqueConstraints = {
+        @UniqueConstraint(name = "uk_auth_user_username", columnNames = {"username"})
+})
+public class AuthUser {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(nullable = false, length = 80)
+    private String username;
+
+    @Column(nullable = false, length = 255)
+    private String passwordHash;
+
+    @Column(nullable = false, length = 40)
+    private String role;
+
+    public AuthUser() {
+    }
+
+    public AuthUser(String username, String passwordHash, String role) {
+        this.username = username;
+        this.passwordHash = passwordHash;
+        this.role = role;
+    }
+
+    public Long getId() {
+        return id;
+    }
+
+    public String getUsername() {
+        return username;
+    }
+
+    public String getPasswordHash() {
+        return passwordHash;
+    }
+
+    public String getRole() {
+        return role;
+    }
+
+    public void setId(Long id) {
+        this.id = id;
+    }
+
+    public void setUsername(String username) {
+        this.username = username;
+    }
+
+    public void setPasswordHash(String passwordHash) {
+        this.passwordHash = passwordHash;
+    }
+
+    public void setRole(String role) {
+        this.role = role;
+    }
+}</code></pre>
+
+    <h3>6.7 Crear el repositorio de usuarios</h3>
+    <p>Archivo: <code>repository/AuthUserRepository.java</code></p>
+
+    <pre><code>package co.edu.authservice.repository;
+
+import co.edu.authservice.model.AuthUser;
+import org.springframework.data.jpa.repository.JpaRepository;
+
+import java.util.Optional;
+
+public interface AuthUserRepository extends JpaRepository&lt;AuthUser, Long&gt; {
+    Optional&lt;AuthUser&gt; findByUsername(String username);
+    boolean existsByUsername(String username);
+}</code></pre>
+
+    <h3>6.8 Crear LoginRequest</h3>
+    <p>Archivo: <code>dto/LoginRequest.java</code></p>
+
+    <pre><code>package co.edu.authservice.dto;
+
+import jakarta.validation.constraints.NotBlank;
+
+public class LoginRequest {
+
+    @NotBlank(message = "El username es obligatorio")
+    private String username;
+
+    @NotBlank(message = "El password es obligatorio")
+    private String password;
+
+    public String getUsername() {
+        return username;
+    }
+
+    public void setUsername(String username) {
+        this.username = username;
+    }
+
+    public String getPassword() {
+        return password;
+    }
+
+    public void setPassword(String password) {
+        this.password = password;
+    }
+}</code></pre>
+
+    <h3>6.9 Crear LoginResponse</h3>
+    <p>Archivo: <code>dto/LoginResponse.java</code></p>
+
+    <pre><code>package co.edu.authservice.dto;
+
+public class LoginResponse {
+
+    private String token;
+    private String type = "Bearer";
+
+    public LoginResponse(String token) {
+        this.token = token;
+    }
+
+    public String getToken() {
+        return token;
+    }
+
+    public String getType() {
+        return type;
+    }
+}</code></pre>
+
+    <h3>6.10 Crear la configuración de seguridad</h3>
+    <p>Archivo: <code>config/SecurityConfig.java</code></p>
+
+    <pre><code>package co.edu.authservice.config;
+
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.security.config.Customizer;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.web.SecurityFilterChain;
+
+@Configuration
+public class SecurityConfig {
+
+    @Bean
+    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+        http
+            .csrf(csrf -> csrf.disable())
+            .authorizeHttpRequests(auth -> auth
+                .requestMatchers("/auth/**", "/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**", "/h2-console/**").permitAll()
+                .anyRequest().authenticated()
+            )
+            .headers(headers -> headers.frameOptions(frame -> frame.disable()))
+            .httpBasic(Customizer.withDefaults());
+
+        return http.build();
+    }
+
+    @Bean
+    public PasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder();
+    }
+}</code></pre>
+
+    <h3>6.11 Crear el seeder de usuarios</h3>
+    <p>Archivo: <code>config/AuthDataSeeder.java</code></p>
+
+    <pre><code>package co.edu.authservice.config;
+
+import co.edu.authservice.model.AuthUser;
+import co.edu.authservice.repository.AuthUserRepository;
+import org.springframework.boot.CommandLineRunner;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.security.crypto.password.PasswordEncoder;
+
+@Configuration
+public class AuthDataSeeder {
+
+    @Bean
+    CommandLineRunner seedUsers(AuthUserRepository repository, PasswordEncoder passwordEncoder) {
+        return args -> {
+            if (repository.count() > 0) {
+                return;
+            }
+
+            repository.save(new AuthUser(
+                    "admin",
+                    passwordEncoder.encode("Admin2026*"),
+                    "ADMIN"
+            ));
+
+            repository.save(new AuthUser(
+                    "docente",
+                    passwordEncoder.encode("Docente2026*"),
+                    "DOCENTE"
+            ));
+
+            repository.save(new AuthUser(
+                    "estudiante1",
+                    passwordEncoder.encode("Estu2026*"),
+                    "ESTUDIANTE"
+            ));
+        };
+    }
+}</code></pre>
+
+    <h3>6.12 Crear el servicio de autenticación</h3>
+    <p>Archivo: <code>service/AuthService.java</code></p>
+
+    <pre><code>package co.edu.authservice.service;
+
+import co.edu.authservice.model.AuthUser;
+import co.edu.authservice.repository.AuthUserRepository;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
+
+@Service
+public class AuthService {
+
+    private final AuthUserRepository authUserRepository;
+    private final PasswordEncoder passwordEncoder;
+
+    public AuthService(AuthUserRepository authUserRepository,
+                       PasswordEncoder passwordEncoder) {
+        this.authUserRepository = authUserRepository;
+        this.passwordEncoder = passwordEncoder;
+    }
+
+    public boolean authenticate(String username, String password) {
+        return authUserRepository.findByUsername(username)
+                .map(user -> passwordEncoder.matches(password, user.getPasswordHash()))
+                .orElse(false);
+    }
+
+    public AuthUser findByUsername(String username) {
+        return authUserRepository.findByUsername(username).orElse(null);
+    }
+}</code></pre>
+
+    <h3>6.13 Crear la utilidad JWT</h3>
+    <p>Archivo: <code>security/JwtUtil.java</code></p>
+
+    <pre><code>package co.edu.authservice.security;
+
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.JwtException;
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.SignatureAlgorithm;
+import io.jsonwebtoken.security.Keys;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Component;
+
+import javax.crypto.SecretKey;
+import java.nio.charset.StandardCharsets;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.Map;
+
+@Component
+public class JwtUtil {
+
+    @Value("${jwt.secret}")
+    private String secret;
+
+    @Value("${jwt.expiration}")
+    private long expiration;
+
+    private SecretKey getSigningKey() {
+        return Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
+    }
+
+    public String generateToken(String username, String role) {
+        Date now = new Date();
+        Date expiryDate = new Date(now.getTime() + expiration);
+
+        Map&lt;String, Object&gt; claims = new HashMap&lt;&gt;();
+        claims.put("role", role);
+
+        return Jwts.builder()
+                .setClaims(claims)
+                .setSubject(username)
+                .setIssuedAt(now)
+                .setExpiration(expiryDate)
+                .signWith(getSigningKey(), SignatureAlgorithm.HS256)
+                .compact();
+    }
+
+    public boolean validateToken(String token) {
+        try {
+            Jwts.parserBuilder()
+                    .setSigningKey(getSigningKey())
+                    .build()
+                    .parseClaimsJws(token);
+            return true;
+        } catch (JwtException | IllegalArgumentException e) {
+            return false;
+        }
+    }
+
+    public String getUsername(String token) {
+        Claims claims = Jwts.parserBuilder()
+                .setSigningKey(getSigningKey())
+                .build()
+                .parseClaimsJws(token)
+                .getBody();
+
+        return claims.getSubject();
+    }
+
+    public String getRole(String token) {
+        Claims claims = Jwts.parserBuilder()
+                .setSigningKey(getSigningKey())
+                .build()
+                .parseClaimsJws(token)
+                .getBody();
+
+        Object role = claims.get("role");
+        return role != null ? role.toString() : null;
+    }
+}</code></pre>
+
+    <h3>6.14 Crear el controlador de autenticación</h3>
+    <p>Archivo: <code>controller/AuthController.java</code></p>
+
+    <pre><code>package co.edu.authservice.controller;
+
+import co.edu.authservice.dto.LoginRequest;
+import co.edu.authservice.dto.LoginResponse;
+import co.edu.authservice.model.AuthUser;
+import co.edu.authservice.security.JwtUtil;
+import co.edu.authservice.service.AuthService;
+import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.HashMap;
+import java.util.Map;
+
+@RestController
+@RequestMapping("/auth")
+public class AuthController {
+
+    private final AuthService authService;
+    private final JwtUtil jwtUtil;
+
+    public AuthController(AuthService authService, JwtUtil jwtUtil) {
+        this.authService = authService;
+        this.jwtUtil = jwtUtil;
+    }
+
+    @PostMapping("/login")
+    public ResponseEntity&lt;?&gt; login(@Valid @RequestBody LoginRequest request) {
+        if (authService.authenticate(request.getUsername(), request.getPassword())) {
+            AuthUser user = authService.findByUsername(request.getUsername());
+            String token = jwtUtil.generateToken(user.getUsername(), user.getRole());
+            return ResponseEntity.ok(new LoginResponse(token));
+        }
+
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .body("Credenciales inválidas");
+    }
+
+    @GetMapping("/validate")
+    public ResponseEntity&lt;?&gt; validate(@RequestParam String token) {
+        Map&lt;String, Object&gt; response = new HashMap&lt;&gt;();
+        boolean valid = jwtUtil.validateToken(token);
+        response.put("valid", valid);
+
+        if (valid) {
+            response.put("username", jwtUtil.getUsername(token));
+            response.put("role", jwtUtil.getRole(token));
+            return ResponseEntity.ok(response);
+        }
+
+        response.put("message", "Token inválido o expirado");
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(response);
+    }
+}</code></pre>
+
+    <h3>6.15 Usuarios de prueba que se crearán automáticamente</h3>
+    <table>
+      <tr><th>Usuario</th><th>Contraseña</th><th>Rol</th></tr>
+      <tr><td>admin</td><td>Admin2026*</td><td>ADMIN</td></tr>
+      <tr><td>docente</td><td>Docente2026*</td><td>DOCENTE</td></tr>
+      <tr><td>estudiante1</td><td>Estu2026*</td><td>ESTUDIANTE</td></tr>
+    </table>
+
+    <div class="ok">
+      Continúe con la parte 3 cuando <code>auth-service</code> compile correctamente y los archivos de estructura estén completos.
+    </div>
+  </section>
+
+  <hr />
+
+  <section id="parte3">
+    <h2>7) Parte 3 — Integrar OpenFeign entre consulta-service y auth-service</h2>
+
+    <h3>7.1 Crear TokenValidationResponse en consulta-service</h3>
+    <p>Archivo: <code>consulta-service/src/main/java/co/edu/demoacademico/dto/TokenValidationResponse.java</code></p>
+
+    <pre><code>package co.edu.demoacademico.dto;
+
+public class TokenValidationResponse {
+
+    private Boolean valid;
+    private String username;
+    private String role;
+    private String message;
+
+    public Boolean getValid() {
+        return valid;
+    }
+
+    public void setValid(Boolean valid) {
+        this.valid = valid;
+    }
+
+    public String getUsername() {
+        return username;
+    }
+
+    public void setUsername(String username) {
+        this.username = username;
+    }
+
+    public String getRole() {
+        return role;
+    }
+
+    public void setRole(String role) {
+        this.role = role;
+    }
+
+    public String getMessage() {
+        return message;
+    }
+
+    public void setMessage(String message) {
+        this.message = message;
+    }
+}</code></pre>
+
+    <h3>7.2 Crear el paquete client en consulta-service</h3>
+    <p>Cree la carpeta:</p>
+    <pre><code>consulta-service/src/main/java/co/edu/demoacademico/client</code></pre>
+
+    <h3>7.3 Crear AuthFeignClient</h3>
+    <p>Archivo: <code>client/AuthFeignClient.java</code></p>
+
+    <pre><code>package co.edu.demoacademico.client;
+
+import co.edu.demoacademico.dto.TokenValidationResponse;
+import org.springframework.cloud.openfeign.FeignClient;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+
+@FeignClient(name = "authClient", url = "${services.auth.url}")
+public interface AuthFeignClient {
+
+    @GetMapping("/auth/validate")
+    TokenValidationResponse validate(@RequestParam("token") String token);
+}</code></pre>
+
+    <h3>7.4 Crear TokenValidationService</h3>
+    <p>Archivo: <code>service/TokenValidationService.java</code></p>
+
+    <pre><code>package co.edu.demoacademico.service;
+
+import co.edu.demoacademico.client.AuthFeignClient;
+import co.edu.demoacademico.dto.TokenValidationResponse;
+import org.springframework.stereotype.Service;
+
+@Service
+public class TokenValidationService {
+
+    private final AuthFeignClient authFeignClient;
+
+    public TokenValidationService(AuthFeignClient authFeignClient) {
+        this.authFeignClient = authFeignClient;
+    }
+
+    public boolean isValid(String token) {
+        try {
+            TokenValidationResponse response = authFeignClient.validate(token);
+            return Boolean.TRUE.equals(response.getValid());
+        } catch (Exception e) {
+            return false;
+        }
+    }
+}</code></pre>
+
+    <div class="warn">
+      La integración entre microservicios debe realizarse con <strong>OpenFeign</strong>.
+      No se debe implementar con <code>RestTemplate</code>.
+    </div>
+
+    <div class="ok">
+      Continúe con la parte 4 cuando <code>consulta-service</code> vuelva a compilar correctamente con los nuevos archivos.
+    </div>
+  </section>
+
+  <hr />
+
+  <section id="parte4">
+    <h2>8) Parte 4 — Proteger el endpoint de estudiantes</h2>
+
+    <p>
+      En esta parte se protegerá el endpoint que lista estudiantes.
+      El flujo será el siguiente:
+      el cliente enviará un token, <code>consulta-service</code> lo leerá, lo enviará a <code>auth-service</code> y,
+      si el token es válido, responderá la información solicitada.
+    </p>
+
+    <h3>8.1 Reemplazar EstudianteController en consulta-service</h3>
+    <p>Archivo: <code>consulta-service/src/main/java/co/edu/demoacademico/controller/EstudianteController.java</code></p>
+
+    <pre><code>package co.edu.demoacademico.controller;
+
+import co.edu.demoacademico.api.ApiResponse;
+import co.edu.demoacademico.api.ResponseBuilder;
+import co.edu.demoacademico.dto.EstudianteCreateDTO;
+import co.edu.demoacademico.dto.EstudianteDTO;
+import co.edu.demoacademico.dto.EstudianteUpdateDTO;
+import co.edu.demoacademico.handler.EstudianteHandler;
+import co.edu.demoacademico.service.TokenValidationService;
+import jakarta.validation.Valid;
+import org.springdoc.core.annotations.ParameterObject;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+@RestController
+@RequestMapping("/api/estudiantes")
+public class EstudianteController {
+
+    private final EstudianteHandler handler;
+    private final TokenValidationService tokenValidationService;
+
+    public EstudianteController(EstudianteHandler handler,
+                                TokenValidationService tokenValidationService) {
+        this.handler = handler;
+        this.tokenValidationService = tokenValidationService;
+    }
+
+    @PostMapping
+    public ResponseEntity&lt;ApiResponse&lt;EstudianteDTO&gt;&gt; crear(@Valid @RequestBody EstudianteCreateDTO in) {
+        return ResponseBuilder.created("Estudiante creado", handler.crear(in));
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity&lt;ApiResponse&lt;EstudianteDTO&gt;&gt; obtener(@PathVariable Long id) {
+        return ResponseBuilder.ok("OK", handler.obtener(id));
+    }
+
+    @GetMapping
+    public ResponseEntity&lt;?&gt; listar(
+            @RequestHeader(value = "Authorization", required = false) String authHeader,
+            @ParameterObject Pageable pageable) {
+
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body("Token no enviado o formato inválido");
+        }
+
+        String token = authHeader.substring(7);
+
+        if (!tokenValidationService.isValid(token)) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body("Token inválido o expirado");
+        }
+
+        return ResponseBuilder.ok("OK", handler.listar(pageable));
+    }
+
+    @PutMapping("/{id}")
+    public ResponseEntity&lt;ApiResponse&lt;EstudianteDTO&gt;&gt; actualizar(
+            @PathVariable Long id,
+            @Valid @RequestBody EstudianteUpdateDTO in) {
+        return ResponseBuilder.ok("Estudiante actualizado", handler.actualizar(id, in));
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity&lt;ApiResponse&lt;Object&gt;&gt; eliminar(@PathVariable Long id) {
+        handler.eliminar(id);
+        return ResponseBuilder.ok("Estudiante eliminado", null);
+    }
+}</code></pre>
+
+    <div class="note">
+      En esta primera versión, solamente se protege <code>GET /api/estudiantes</code>.
+      Esto permite concentrarse en el flujo principal de validación del token.
+    </div>
+
+    <h3>8.2 Validación local antes de Docker</h3>
+    <p>Antes de pasar a Docker, realice la validación local siguiendo este orden:</p>
+    <ol>
+      <li>ejecute <code>auth-service</code> en el puerto <code>8081</code>;</li>
+      <li>ejecute <code>consulta-service</code> en el puerto <code>8082</code>;</li>
+      <li>abra Swagger de <code>auth-service</code>;</li>
+      <li>realice login con uno de los usuarios sembrados;</li>
+      <li>copie el token devuelto;</li>
+      <li>abra Swagger de <code>consulta-service</code>;</li>
+      <li>llame <code>GET /api/estudiantes</code> con el header:
+        <pre><code>Authorization: Bearer TOKEN_AQUI</code></pre>
+      </li>
+    </ol>
+
+    <div class="ok">
+      Continúe con la parte 5 cuando la validación local ya funcione correctamente.
+    </div>
+  </section>
+
+  <hr />
+
+  <section id="parte5">
+    <h2>9) Parte 5 — Dockerizar y orquestar ambos servicios</h2>
+
+    <h3>9.1 Crear Dockerfile para auth-service</h3>
+    <p>Archivo: <code>auth-service/Dockerfile</code></p>
+
+    <pre><code>FROM eclipse-temurin:21-jdk
+WORKDIR /app
+COPY target/auth-service-0.0.1-SNAPSHOT.jar app.jar
+EXPOSE 8081
+ENTRYPOINT ["java", "-jar", "app.jar"]</code></pre>
+
+    <h3>9.2 Crear Dockerfile para consulta-service</h3>
+    <p>Archivo: <code>consulta-service/Dockerfile</code></p>
+
+    <pre><code>FROM eclipse-temurin:21-jdk
+WORKDIR /app
+COPY target/consulta-service-0.0.1-SNAPSHOT.jar app.jar
+EXPOSE 8082
+ENTRYPOINT ["java", "-jar", "app.jar"]</code></pre>
+
+    <h3>9.3 Verificar los nombres de los JAR generados</h3>
+    <p>Después de compilar ambos proyectos, verifique que existan estos archivos:</p>
+    <ul>
+      <li><code>auth-service/target/auth-service-0.0.1-SNAPSHOT.jar</code></li>
+      <li><code>consulta-service/target/consulta-service-0.0.1-SNAPSHOT.jar</code></li>
+    </ul>
+
+    <p>Si el nombre real es diferente, ajuste el valor del comando <code>COPY</code> en el Dockerfile.</p>
+
+    <h3>9.4 Crear docker-compose.yml en la raíz</h3>
+    <p>Archivo: <code>microservicios-demoacademico/docker-compose.yml</code></p>
+
+    <pre><code>version: '3.9'
+
+services:
+  auth-service:
+    build: ./auth-service
+    container_name: auth-service
+    ports:
+      - "8081:8081"
+    networks:
+      - micro-net
+
+  consulta-service:
+    build: ./consulta-service
+    container_name: consulta-service
+    ports:
+      - "8082:8082"
+    depends_on:
+      - auth-service
+    environment:
+      SERVICES_AUTH_URL: http://auth-service:8081
+    networks:
+      - micro-net
+
+networks:
+  micro-net:
+    driver: bridge</code></pre>
+
+    <div class="note">
+      Dentro de Docker ya no debe usarse <code>localhost</code> para la comunicación entre servicios.
+      Debe utilizarse el nombre del servicio definido en Compose:
+      <code>http://auth-service:8081</code>.
+    </div>
+
+    <h3>9.5 Compilar ambos proyectos antes de usar Docker</h3>
+    <p>Desde la carpeta de cada proyecto ejecute:</p>
+
+    <pre><code>mvn clean package -DskipTests</code></pre>
+
+    <h3>9.6 Levantar la solución completa</h3>
+    <p>Desde la carpeta raíz <code>microservicios-demoacademico</code>, ejecute:</p>
+
+    <pre><code>docker compose up --build</code></pre>
+
+    <h3>9.7 Verificar que ambos contenedores estén activos</h3>
+    <p>En otra terminal ejecute:</p>
+
+    <pre><code>docker ps</code></pre>
+
+    <p>Como resultado de la ejecución, deben existir dos contenedores activos:</p>
+    <ul>
+      <li><code>auth-service</code></li>
+      <li><code>consulta-service</code></li>
+    </ul>
+  </section>
+
+  <hr />
+
+  <section id="pruebas">
+    <h2>10) Pruebas obligatorias en Swagger</h2>
+
+    <p>
+      Una vez completada la implementación, ejecute y documente las siguientes pruebas funcionales.
+    </p>
+
+    <h3>10.1 URLs que deben verificarse</h3>
+    <ul>
+      <li>Swagger de auth-service: <code>http://localhost:8081/swagger-ui.html</code></li>
+      <li>Swagger de consulta-service: <code>http://localhost:8082/swagger-ui.html</code></li>
+      <li>H2 Console de auth-service: <code>http://localhost:8081/h2-console</code></li>
+      <li>H2 Console de consulta-service: <code>http://localhost:8082/h2-console</code></li>
+    </ul>
+
+    <h3>10.2 Usuarios de prueba</h3>
+    <table>
+      <tr><th>Usuario</th><th>Contraseña</th><th>Rol</th></tr>
+      <tr><td>admin</td><td>Admin2026*</td><td>ADMIN</td></tr>
+      <tr><td>docente</td><td>Docente2026*</td><td>DOCENTE</td></tr>
+      <tr><td>estudiante1</td><td>Estu2026*</td><td>ESTUDIANTE</td></tr>
+    </table>
+
+    <h3>10.3 Guion mínimo obligatorio</h3>
+    <ol>
+      <li>Realizar un login exitoso con un usuario válido.</li>
+      <li>Realizar un login fallido con contraseña incorrecta.</li>
+      <li>Validar manualmente un token válido.</li>
+      <li>Consumir el endpoint protegido de estudiantes con un token válido.</li>
+      <li>Consumir el endpoint protegido sin token.</li>
+      <li>Consumir el endpoint protegido con un token inválido.</li>
+    </ol>
+
+    <h3>10.4 Ejemplo de login exitoso</h3>
+    <p>En <code>POST /auth/login</code> puede usarse, por ejemplo:</p>
+
+    <pre><code>{
+  "username": "admin",
+  "password": "Admin2026*"
+}</code></pre>
+
+    <h3>10.5 Respuesta esperada del login exitoso</h3>
+    <pre><code>{
+  "token": "eyJhbGciOiJIUzI1NiJ9....",
+  "type": "Bearer"
+}</code></pre>
+
+    <h3>10.6 Ejemplo de validación del token</h3>
+    <p>En <code>GET /auth/validate?token=TOKEN_AQUI</code> debe obtenerse una respuesta similar a:</p>
+
+    <pre><code>{
+  "valid": true,
+  "username": "admin",
+  "role": "ADMIN"
+}</code></pre>
+
+    <h3>10.7 Ejemplo de consumo del endpoint protegido</h3>
+    <p>En <code>GET /api/estudiantes?page=0&amp;size=5</code> debe enviarse el siguiente header:</p>
+
+    <pre><code>Authorization: Bearer TOKEN_AQUI</code></pre>
+
+    <h3>10.8 Respuestas fallidas esperadas</h3>
+    <p>Sin token:</p>
+    <pre><code>Token no enviado o formato inválido</code></pre>
+
+    <p>Con token inválido:</p>
+    <pre><code>Token inválido o expirado</code></pre>
+  </section>
+
+  <hr />
+
+  <section id="entregable">
+    <h2>11) Entregable</h2>
+
+    <p>Como resultado del laboratorio se debe entregar:</p>
+
+    <ul>
+      <li>el proyecto base correctamente construido;</li>
+      <li>el proyecto <code>consulta-service</code> funcional;</li>
+      <li>el proyecto <code>auth-service</code> funcional;</li>
+      <li>los dos archivos <code>Dockerfile</code>;</li>
+      <li>el archivo <code>docker-compose.yml</code>;</li>
+      <li>evidencias de las pruebas obligatorias realizadas en Swagger;</li>
+      <li>un README corto que incluya:
+        <ul>
+          <li>cómo ejecutar los servicios localmente;</li>
+          <li>cómo levantar la solución con Docker Compose;</li>
+          <li>las URLs de Swagger y H2 Console;</li>
+          <li>los usuarios de prueba.</li>
+        </ul>
+      </li>
+    </ul>
+  </section>
+
+  <hr />
+
+  <section id="checklist">
+    <h2>12) Checklist final</h2>
+
+    <h3>12.1 Proyecto base</h3>
+    <ul>
+      <li>Existe la arquitectura <code>controller-handler-service-repository-model</code>.</li>
+      <li>Existen los DTOs de creación, actualización y salida.</li>
+      <li>Existe <code>ApiResponse</code> y <code>ResponseBuilder</code>.</li>
+      <li>Existe <code>GlobalExceptionHandler</code>.</li>
+      <li>H2 funciona.</li>
+      <li>Swagger funciona.</li>
+      <li>El CRUD de estudiantes funciona.</li>
+    </ul>
+
+    <h3>12.2 auth-service</h3>
+    <ul>
+      <li>Existe entidad <code>AuthUser</code>.</li>
+      <li>Existe <code>AuthUserRepository</code>.</li>
+      <li>Existe <code>PasswordEncoder</code> con BCrypt.</li>
+      <li>Existe <code>AuthDataSeeder</code>.</li>
+      <li>Existe <code>JwtUtil</code>.</li>
+      <li><code>/auth/login</code> funciona.</li>
+      <li><code>/auth/validate</code> funciona.</li>
+    </ul>
+
+    <h3>12.3 consulta-service</h3>
+    <ul>
+      <li>OpenFeign está configurado.</li>
+      <li>Existe <code>AuthFeignClient</code>.</li>
+      <li>Existe <code>TokenValidationService</code>.</li>
+      <li><code>GET /api/estudiantes</code> exige token.</li>
+    </ul>
+
+    <h3>12.4 Docker</h3>
+    <ul>
+      <li>Ambos proyectos compilan.</li>
+      <li>Ambos generan su JAR.</li>
+      <li>Ambos tienen Dockerfile.</li>
+      <li>Docker Compose levanta ambos servicios.</li>
+    </ul>
+
+    <h3>12.5 Pruebas</h3>
+    <ul>
+      <li>Login exitoso probado.</li>
+      <li>Login fallido probado.</li>
+      <li>Validación del token probada.</li>
+      <li>Consulta con token válida probada.</li>
+      <li>Consulta sin token probada.</li>
+      <li>Consulta con token inválido probada.</li>
+    </ul>
+  </section>
+
+  <hr />
+
+  <p class="small">
+    Ingeniería de Software III — Lab 04.<br/>
+    Guía completa: construcción desde cero de un proyecto base y evolución a microservicios con JWT, H2, Swagger, OpenFeign y Docker.
+  </p>
+
+</main>
 
 </body>
 </html>
